@@ -1,0 +1,19 @@
+CLAUDE.md
+.venv
+.venv.nosync/
+.env
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Local data and indexes
+data/raw/
+chroma/
+
+# Saved source documents (license unclear, keep out of the repo)
+docs/pdf/
+docs/html/
+docs/docx/
+
+# Kol Zchut pages used as test fixtures (same license question as docs/)
+tests/fixtures/
