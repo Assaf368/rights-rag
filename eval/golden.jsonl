@@ -74,3 +74,33 @@
 {"id": "q74", "split": "dev", "type": "unanswerable", "question": "כמה זמן מותר לפי החוק שתהיה תקופת ניסיון בעבודה חדשה?", "evidence": [], "notes": "the corpus only says minimum wage applies during a trial period"}
 {"id": "q75", "split": "dev", "type": "unanswerable", "question": "מותר למעסיק לדרוש ממני לעבור בדיקת פוליגרף?", "evidence": []}
 {"id": "q76", "split": "test", "type": "unanswerable", "question": "כמה עולה לפתוח תיק עוסק פטור?", "evidence": []}
+{"id": "u01", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "מותר למעסיק לבקש ממני גישה לחשבון הפייסבוק שלי?", "evidence": [], "notes": "no social-media rules in the corpus"}
+{"id": "u02", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "בעבודה מחייבים אותי ללבוש מדים. המעסיק צריך לשלם לי על הכביסה שלהם?", "evidence": [], "notes": "'ביגוד' appears only as a benefit kept during notice"}
+{"id": "u03", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "אני מתחתן בחודש הבא. מגיעים לי ימי חופש נוספים בשביל החתונה?", "evidence": [], "notes": "near vacation pages; no wedding leave"}
+{"id": "u04", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "המעסיק חייב לתת לי יום חופש ביום ההולדת שלי?", "evidence": [], "notes": "'יום הולדת' appears only for teen wage changes"}
+{"id": "u05", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "כמה עולה להגיש תביעה נגד המעסיק בבית הדין לעבודה?", "evidence": [], "notes": "no court fees in the corpus"}
+{"id": "u06", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "אני משלם על חניה ליד העבודה. המעסיק צריך להחזיר לי את זה?", "evidence": [], "notes": "near travel reimbursement; parking only for hospitals"}
+{"id": "u07", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "עד מתי אני חייבת לספר למעסיק שאני בהיריון?", "evidence": [], "notes": "many pregnancy pages, none on when to tell"}
+{"id": "u08", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "אני סטודנט. מגיעים לי ימי חופש בתשלום בשביל בחינות?", "evidence": [], "notes": "no exam leave"}
+{"id": "u09", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "מותר לפטר אותי בגלל שאני באמצע הליך גירושין?", "evidence": [], "notes": "no family-status discrimination rules"}
+{"id": "u10", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "המעסיק שלי פשט רגל ולא שילם לי משכורת. ממי אני מקבל את הכסף?", "evidence": [], "notes": "only a pointer to another page, no content"}
+{"id": "u11", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "המעסיק חייב לתת לי כרטיס תן ביס או ארוחות צהריים?", "evidence": [], "notes": "no meal benefits"}
+{"id": "u12", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "מותר לי לעבוד בערבים בעבודה נוספת בלי לספר למעסיק?", "evidence": [], "notes": "second job appears only for unemployment"}
+{"id": "u13", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "מאיזה גיל מותר להעסיק ילד בעבודה?", "evidence": [], "notes": "teen wages only, no minimum age"}
+{"id": "u14", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "כמה קצבת ילדים מקבלים על ילד ראשון?", "evidence": [], "notes": "child allowance mentioned without amounts"}
+{"id": "u15", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "כמה ביטוח לאומי משלם לי על ימי מילואים?", "evidence": [], "notes": "reserve-duty protections only, no pay amounts"}
+{"id": "u16", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "מותר למעסיק לדרוש ממני בדיקת סמים?", "evidence": [], "notes": "no drug testing"}
+{"id": "u17", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "מותר לי לספר לחברים בעבודה כמה אני מרוויח?", "evidence": [], "notes": "no pay-secrecy rules"}
+{"id": "u18", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "המעסיק חייב לממן לי טלפון נייד לעבודה?", "evidence": [], "notes": "phone appears only as a benefit kept during notice or unpaid leave"}
+{"id": "u19", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "אני עובד 12 שנה באותו מקום, 5 ימים בשבוע. כמה ימי חופשה מגיעים לי בשנה?", "evidence": [], "notes": "only examples for years 3 and 5, no table; tests outside knowledge"}
+{"id": "u20", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "כמה מס הכנסה ינכו לי מבונוס שנתי?", "evidence": [], "notes": "bonuses only in the minimum-wage context"}
+{"id": "u21", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "הייתי בבידוד בגלל מחלה מדבקת. מגיע לי תשלום על הימים האלה?", "evidence": [], "notes": "no quarantine rules"}
+{"id": "u22", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "צריך להחליף לבגדי עבודה לפני המשמרת. משלמים לי על הזמן הזה?", "evidence": [], "notes": "no changing-time rules"}
+{"id": "u23", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "יש לי אופציות בחברה. מה קורה להן אם מפטרים אותי?", "evidence": [], "notes": "no stock options"}
+{"id": "u24", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "המעסיק דורש שאפקיד צ'ק ביטחון כשאני מתחיל לעבוד. זה חוקי?", "evidence": [], "notes": "no security deposits"}
+{"id": "u25", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "תרמתי דם בזמן העבודה. מגיע לי יום חופש בתשלום?", "evidence": [], "notes": "no blood-donation leave"}
+{"id": "u26", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "מה שעות הפתיחה של לשכת התעסוקה בתל אביב?", "evidence": [], "notes": "registration steps only, no office hours"}
+{"id": "u27", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "איך מבטלים מנוי לחדר כושר?", "evidence": [], "notes": "off-domain control question"}
+{"id": "u28", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "המעסיק חייב לתת לי תוספת ותק כל שנה?", "evidence": [], "notes": "'תוספת ותק' only as a pay component, not an obligation"}
+{"id": "u29", "split": "dev", "type": "unanswerable", "tags": ["near_topic"], "question": "נולד לי נכד. כמה ימי חופש מגיעים לי?", "evidence": [], "notes": "near paternity leave; nothing for grandparents"}
+{"id": "u30", "split": "test", "type": "unanswerable", "tags": ["near_topic"], "question": "המעסיק רוצה לשלם לי במזומן. מה הסכום הכי גבוה שמותר לשלם במזומן?", "evidence": [], "notes": "payslip rules only, no cash limits"}

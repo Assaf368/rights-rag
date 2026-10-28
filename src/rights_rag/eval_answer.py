@@ -310,11 +310,18 @@ def main() -> None:
     parser.add_argument(
         "--rescore", type=Path, help="score a saved run (adds judge labels if --judge)"
     )
+    parser.add_argument(
+        "--unanswerable-only",
+        action="store_true",
+        help="run only questions with no answer",
+    )
     args = parser.parse_args()
 
     questions = [
         q for q in load_golden() if args.split == "all" or q["split"] == args.split
     ]
+    if args.unanswerable_only:
+        questions = [q for q in questions if not q["evidence"]]
     by_id = {q["id"]: q for q in questions}
     if args.rescore:
         path = args.rescore
@@ -326,7 +333,8 @@ def main() -> None:
         run = {"split": args.split, "sources": sources}
         run["answers"] = generate(questions, sources, args.versions, claude_caller())
         RUNS.mkdir(parents=True, exist_ok=True)
-        path = RUNS / f"answers_{args.split}_{datetime.now():%Y%m%d-%H%M%S}.json"
+        tag = "_unanswerable" if args.unanswerable_only else ""
+        path = RUNS / f"answers_{args.split}{tag}_{datetime.now():%Y%m%d-%H%M%S}.json"
     if args.judge:
         import anthropic
 
