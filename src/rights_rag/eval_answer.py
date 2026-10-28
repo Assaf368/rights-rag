@@ -301,6 +301,7 @@ def score(questions: list[dict], run: dict) -> dict:
             if cites
             else None,
             "citations_total": len(cites),
+            "avg_answer_chars": round(sum(len(t) for t in text.values()) / len(text)),
             "refusals": sum(a["stop_reason"] == "refusal" for a in answers.values()),
             "cost_usd": round(cost, 3),
             "n": {
@@ -361,6 +362,10 @@ def print_report(report: dict) -> None:
     print(
         f"{'citations checked':44}"
         + "".join(f"{report[v]['citations_total']:>10}" for v in versions)
+    )
+    print(
+        f"{'average answer length (chars)':44}"
+        + "".join(f"{report[v]['avg_answer_chars']:>10}" for v in versions)
     )
     print(
         f"{'refusals':44}" + "".join(f"{report[v]['refusals']:>10}" for v in versions)
