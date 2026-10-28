@@ -17,3 +17,6 @@ docs/docx/
 
 # Kol Zchut pages used as test fixtures (same license question as docs/)
 tests/fixtures/
+
+# Raw eval runs (contain corpus text)
+eval/runs/
