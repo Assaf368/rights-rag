@@ -4,7 +4,8 @@ A question is a hit at k when every fact of its evidence appears verbatim in
 the top k chunks. Raw retrievals are saved, so scores can be recomputed without
 loading the model:
 
-    uv run python -m rights_rag.eval_retrieval            # retrieve + score (dev)
+    uv run python -m rights_rag.eval_retrieval                       # chunking strategies
+    uv run python -m rights_rag.eval_retrieval --experiment hybrid   # vector vs BM25 vs RRF
     uv run python -m rights_rag.eval_retrieval --rescore eval/runs/<file>.json
 """
 
@@ -115,6 +116,34 @@ def retrieve(questions: list[dict], collections: list[str]) -> dict:
     return run
 
 
+HYBRID_COLLECTION = "structure_headings__e5-large"
+HYBRID_CONFIGS = ["vector", "bm25", "bm25_prefix", "hybrid", "hybrid_prefix"]
+
+
+def retrieve_hybrid(questions: list[dict], collection: str = HYBRID_COLLECTION) -> dict:
+    """Same chunks, different retrievers: one changed thing per row."""
+    from rights_rag.index import E5Embedder, open_collection
+    from rights_rag.retrieval import Retriever
+
+    embedder = E5Embedder()
+    retriever = Retriever(open_collection(collection), embedder.query)
+    run: dict[str, dict[str, list[dict]]] = {c: {} for c in HYBRID_CONFIGS}
+    for q in questions:
+        vec = embedder.query(q["question"])
+        ranked = {
+            "vector": retriever.vector(q["question"], query_vector=vec),
+            "bm25": retriever.bm25(q["question"]),
+            "bm25_prefix": retriever.bm25(q["question"], strip_prefixes=True),
+            "hybrid": retriever.hybrid(q["question"], query_vector=vec),
+            "hybrid_prefix": retriever.hybrid(
+                q["question"], strip_prefixes=True, query_vector=vec
+            ),
+        }
+        for config, ids in ranked.items():
+            run[config][q["id"]] = retriever.hits(ids, TOP_N)
+    return run
+
+
 def print_report(report: dict) -> None:
     header = (
         f"{'collection':32}"
@@ -144,6 +173,9 @@ def main() -> None:
     parser.add_argument(
         "--rescore", type=Path, help="score a saved run without retrieving"
     )
+    parser.add_argument(
+        "--experiment", choices=["chunking", "hybrid"], default="chunking"
+    )
     args = parser.parse_args()
 
     questions = [
@@ -153,12 +185,16 @@ def main() -> None:
         saved = json.loads(args.rescore.read_text(encoding="utf-8"))
         run = saved["run"]
     else:
-        run = retrieve(questions, COLLECTIONS)
+        if args.experiment == "hybrid":
+            run = retrieve_hybrid(questions)
+        else:
+            run = retrieve(questions, COLLECTIONS)
         RUNS.mkdir(parents=True, exist_ok=True)
-        out = RUNS / f"retrieval_{args.split}_{datetime.now():%Y%m%d-%H%M%S}.json"
+        stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
+        out = RUNS / f"{args.experiment}_{args.split}_{stamp}.json"
         out.write_text(
             json.dumps(
-                {"split": args.split, "collections": COLLECTIONS, "run": run},
+                {"split": args.split, "experiment": args.experiment, "run": run},
                 ensure_ascii=False,
             ),
             encoding="utf-8",
