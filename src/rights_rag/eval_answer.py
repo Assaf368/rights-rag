@@ -117,18 +117,88 @@ Answer to grade:
 
 Reply with one label only."""
 
-_LABELS = ("CORRECT", "PARTIAL", "INCORRECT", "ABSTAINED", "HALLUCINATED")
+JUDGE_V2_ANSWERABLE = """You grade an answer from a retrieval system about Israeli employment rights.
+The system saw only the numbered sources below. The reference facts are correct
+and come from the corpus; they may or may not be among these sources.
+
+Labels:
+CORRECT - the answer gives the substance of the reference facts that the sources
+  contain, and every claim it makes is supported by the sources.
+PARTIAL - the answer misses a reference fact that the sources do contain, or omits
+  a condition from the sources that changes the answer.
+UNSUPPORTED - the answer makes a claim the sources do not support, even if the
+  claim is true (for example, a number from general knowledge).
+INCORRECT - the answer contradicts the reference facts or the sources.
+ABSTAINED - the answer says it cannot answer.
+
+Saying that the sources do not cover a detail is not a mistake when that is true.
+
+Question: {question}
+
+Reference facts:
+{facts}
+
+Sources:
+{sources}
+
+Answer to grade:
+{answer}
+
+Reply with one label only."""
+
+JUDGE_V2_UNANSWERABLE = """You grade an answer from a retrieval system about Israeli employment rights.
+The system saw only the numbered sources below, and they do not answer the question.
+
+Labels:
+ABSTAINED - the answer says it cannot answer the question from its sources. It may
+  quote related material from the sources or suggest where to look.
+HALLUCINATED - the answer gives a substantive answer to the question that the
+  sources do not support.
+
+Question: {question}
+
+Sources:
+{sources}
+
+Answer to grade:
+{answer}
+
+Reply with one label only."""
+
+# INCORRECT contains CORRECT, so labels are matched as whole words.
+_LABELS = (
+    "INCORRECT",
+    "UNSUPPORTED",
+    "HALLUCINATED",
+    "ABSTAINED",
+    "PARTIAL",
+    "CORRECT",
+)
+_LABEL = re.compile(r"\b(" + "|".join(_LABELS) + r")\b")
 
 
-def judge(question: dict, answer_text: str, client) -> str:
-    if question["evidence"]:
-        facts = "\n".join(f"- {fact[0]}" for fact in question["evidence"])
-        prompt = JUDGE_ANSWERABLE.format(
+def judge(
+    question: dict, answer_text: str, client, sources: list[dict] | None = None
+) -> str:
+    """Grade one answer. With sources (judge v2) the judge also checks that every
+    claim is supported by what the system saw; without them (judge v1) it only
+    compares the answer with the reference facts."""
+    facts = "\n".join(f"- {fact[0]}" for fact in question["evidence"])
+    if sources is None:
+        template = JUDGE_ANSWERABLE if question["evidence"] else JUDGE_UNANSWERABLE
+        prompt = template.format(
             question=question["question"], facts=facts, answer=answer_text
         )
     else:
-        prompt = JUDGE_UNANSWERABLE.format(
-            question=question["question"], answer=answer_text
+        numbered = "\n\n".join(f"[{i}] {c['text']}" for i, c in enumerate(sources, 1))
+        template = (
+            JUDGE_V2_ANSWERABLE if question["evidence"] else JUDGE_V2_UNANSWERABLE
+        )
+        prompt = template.format(
+            question=question["question"],
+            facts=facts,
+            sources=numbered,
+            answer=answer_text,
         )
     response = client.messages.create(
         model=JUDGE_MODEL,
@@ -137,7 +207,8 @@ def judge(question: dict, answer_text: str, client) -> str:
         messages=[{"role": "user", "content": prompt}],
     )
     reply = "".join(b.text for b in response.content if b.type == "text").upper()
-    return next((label for label in _LABELS if label in reply), "UNPARSED")
+    match = _LABEL.search(reply)
+    return match.group(1) if match else "UNPARSED"
 
 
 # ---------------------------------------------------------------- run
@@ -186,7 +257,6 @@ def score(questions: list[dict], run: dict) -> dict:
     for version, answers in run["answers"].items():
         # A saved run may hold questions since dropped from the golden set.
         answers = {qid: a for qid, a in answers.items() if qid in by_id}
-        judged = run.get("judge", {}).get(version, {})
         answerable = [qid for qid in answers if by_id[qid]["evidence"]]
         unanswerable = [qid for qid in answers if not by_id[qid]["evidence"]]
         keyed = [qid for qid in answerable if "answer_keys" in by_id[qid]]
@@ -239,18 +309,32 @@ def score(questions: list[dict], run: dict) -> dict:
                 "keyed": len(keyed),
             },
         }
-        if judged:
-            labels = [judged[q] for q in answerable if q in judged]
-            r["judge_answerable"] = {
-                lab: labels.count(lab) / len(labels) for lab in sorted(set(labels))
-            }
-            labels_u = [judged[q] for q in unanswerable if q in judged]
-            r["judge_unanswerable"] = {
-                lab: labels_u.count(lab) / len(labels_u)
-                for lab in sorted(set(labels_u))
-            }
+        for name in ("judge", "judge_v2"):
+            labels = run.get(name, {}).get(version, {})
+            if labels:
+                r[name] = _label_rates(labels, answerable, unanswerable)
+                # Sanity check of the judge against the deterministic keys.
+                pairs = [
+                    (
+                        labels[q] == "CORRECT",
+                        keys_found(by_id[q]["answer_keys"], text[q]),
+                    )
+                    for q in keyed
+                    if q in labels
+                ]
+                r[name]["agrees_with_keys"] = _rate([a == b for a, b in pairs])
         report[version] = r
     return report
+
+
+def _label_rates(labels: dict, answerable: list, unanswerable: list) -> dict:
+    out = {}
+    for group, ids in (("answerable", answerable), ("unanswerable", unanswerable)):
+        got = [labels[q] for q in ids if q in labels]
+        out[group] = (
+            {lab: got.count(lab) / len(got) for lab in sorted(set(got))} if got else {}
+        )
+    return out
 
 
 def _rate(flags: list[bool]) -> float | None:
@@ -285,13 +369,21 @@ def print_report(report: dict) -> None:
         f"{'answer cost ($)':44}"
         + "".join(f"{report[v]['cost_usd']:>10}" for v in versions)
     )
-    if any("judge_answerable" in report[v] for v in versions):
-        print("\nLLM judge (Haiku, not deterministic):")
-        for v in versions:
-            print(f"  {v} answerable:   {_fmt(report[v].get('judge_answerable', {}))}")
-            print(
-                f"  {v} unanswerable: {_fmt(report[v].get('judge_unanswerable', {}))}"
-            )
+    for name, title in (
+        ("judge", "judge v1 (Haiku, reference facts only)"),
+        ("judge_v2", "judge v2 (Haiku, also sees the sources)"),
+    ):
+        if any(name in report[v] for v in versions):
+            print(f"\n{title}, not deterministic:")
+            for v in versions:
+                j = report[v].get(name, {})
+                print(f"  {v} answerable:   {_fmt(j.get('answerable', {}))}")
+                print(f"  {v} unanswerable: {_fmt(j.get('unanswerable', {}))}")
+                agree = j.get("agrees_with_keys")
+                if agree is not None:
+                    print(
+                        f"  {v} agrees with answer keys on {agree:.0%} of keyed questions"
+                    )
     print("\nn =", report[versions[0]]["n"])
 
 
@@ -308,6 +400,17 @@ def main() -> None:
     parser.add_argument("--versions", nargs="+", default=["v0", "v1"])
     parser.add_argument(
         "--judge", action="store_true", help="also grade with the Haiku judge"
+    )
+    parser.add_argument(
+        "--judge-version",
+        choices=["1", "2", "both"],
+        default="2",
+        help="1: reference facts only; 2: also sees the sources",
+    )
+    parser.add_argument(
+        "--rejudge",
+        action="store_true",
+        help="discard saved labels of the chosen judge first",
     )
     parser.add_argument(
         "--rescore", type=Path, help="score a saved run (adds judge labels if --judge)"
@@ -341,11 +444,16 @@ def main() -> None:
         import anthropic
 
         client = anthropic.Anthropic()
-        for version, answers in run["answers"].items():
-            labels = run.setdefault("judge", {}).setdefault(version, {})
-            for qid, a in answers.items():
-                if qid not in labels and qid in by_id:
-                    labels[qid] = judge(by_id[qid], a["text"], client)
+        names = {"1": ["judge"], "2": ["judge_v2"], "both": ["judge", "judge_v2"]}
+        for name in names[args.judge_version]:
+            if args.rejudge:
+                run.pop(name, None)
+            for version, answers in run["answers"].items():
+                labels = run.setdefault(name, {}).setdefault(version, {})
+                for qid, a in answers.items():
+                    if qid not in labels and qid in by_id:
+                        sources = run["sources"][qid] if name == "judge_v2" else None
+                        labels[qid] = judge(by_id[qid], a["text"], client, sources)
     path.write_text(json.dumps(run, ensure_ascii=False), encoding="utf-8")
     print(f"run saved to {path}\n")
     print_report(score(questions, run))

@@ -91,3 +91,11 @@ def test_score_end_to_end():
     assert r["abstained_when_unanswerable"] == 1.0
     assert r["abstained_when_answerable"] == 0.0
     assert r["citations_valid"] == 1.0
+
+
+def test_judge_label_parsing_does_not_read_incorrect_as_correct():
+    from rights_rag.eval_answer import _LABEL
+
+    assert _LABEL.search("INCORRECT").group(1) == "INCORRECT"
+    assert _LABEL.search("LABEL: CORRECT.").group(1) == "CORRECT"
+    assert _LABEL.search("UNSUPPORTED - A NUMBER FROM MEMORY").group(1) == "UNSUPPORTED"
