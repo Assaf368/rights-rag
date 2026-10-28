@@ -184,6 +184,8 @@ def score(questions: list[dict], run: dict) -> dict:
     by_id = {q["id"]: q for q in questions}
     report = {}
     for version, answers in run["answers"].items():
+        # A saved run may hold questions since dropped from the golden set.
+        answers = {qid: a for qid, a in answers.items() if qid in by_id}
         judged = run.get("judge", {}).get(version, {})
         answerable = [qid for qid in answers if by_id[qid]["evidence"]]
         unanswerable = [qid for qid in answers if not by_id[qid]["evidence"]]
@@ -342,7 +344,7 @@ def main() -> None:
         for version, answers in run["answers"].items():
             labels = run.setdefault("judge", {}).setdefault(version, {})
             for qid, a in answers.items():
-                if qid not in labels:
+                if qid not in labels and qid in by_id:
                     labels[qid] = judge(by_id[qid], a["text"], client)
     path.write_text(json.dumps(run, ensure_ascii=False), encoding="utf-8")
     print(f"run saved to {path}\n")
