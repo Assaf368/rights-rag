@@ -29,28 +29,36 @@ JUDGE_MODEL = "claude-haiku-5-5"
 PRICES = {"claude-sonnet-5-5": (2.0, 10.0), "claude-haiku-5-5": (0.10, 0.50)}
 
 # v1 has an exact sentence; v0 does not, so common Hebrew ways of saying
-# "the sources don't cover this" also count.
+# "the sources don't cover this" also count. Only the opening counts: answers
+# often end with a "what is missing" note, which is not an abstention.
 _ABSTAIN_PHRASES = (
     ABSTAIN_V1[:-1],
     "אין במקורות",
     "אין מידע",
     "אין בהקשר",
     "אין התייחסות",
+    "אין לי בסיס",
     "לא מופיע",
     "לא מצוין",
     "לא נמצא מידע",
     "אינם מתייחסים",
     "אינו מתייחס",
-    "אינו כולל מידע",
-    "אינם כוללים מידע",
+    "אינו עוסק",
+    "אינם עוסקים",
+    "אינו מגדיר",
+    "אינו כולל",
+    "אינם כוללים",
+    "אי אפשר לענות",
+    "לא ניתן לענות",
     "לא ניתן לדעת",
 )
+ABSTAIN_WINDOW = 150  # characters from the start of the answer
 _CITATION = re.compile(r"«([^»]+)»\s*\[(\d+)\]")
 
 
 def is_abstention(text: str) -> bool:
-    t = normalize(text)
-    return any(p in t for p in _ABSTAIN_PHRASES)
+    opening = normalize(text)[:ABSTAIN_WINDOW]
+    return any(p in opening for p in _ABSTAIN_PHRASES)
 
 
 def keys_found(keys: list[list[str]], text: str) -> bool:
@@ -204,6 +212,16 @@ def score(questions: list[dict], run: dict) -> dict:
             "key_facts_correct": _rate(
                 [keys_found(by_id[q]["answer_keys"], text[q]) for q in keyed]
             ),
+            "key_facts_not_in_sources": _rate(
+                [
+                    keys_found(by_id[q]["answer_keys"], text[q])
+                    and not keys_found(
+                        by_id[q]["answer_keys"],
+                        " ".join(c["text"] for c in run["sources"][q]),
+                    )
+                    for q in keyed
+                ]
+            ),
             "answers_with_citations": _rate(
                 [bool(_CITATION.search(t)) for t in text.values()]
             ),
@@ -242,6 +260,7 @@ def print_report(report: dict) -> None:
         ("abstained, unanswerable (higher is better)", "abstained_when_unanswerable"),
         ("abstained, answerable (lower is better)", "abstained_when_answerable"),
         ("key facts in answer", "key_facts_correct"),
+        ("  ...stated though missing from sources", "key_facts_not_in_sources"),
         ("answers with «quote» [n]", "answers_with_citations"),
         ("citations found in their source", "citations_valid"),
     ]
