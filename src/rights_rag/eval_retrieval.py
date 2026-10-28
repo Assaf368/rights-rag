@@ -6,6 +6,7 @@ loading the model:
 
     uv run python -m rights_rag.eval_retrieval                       # chunking strategies
     uv run python -m rights_rag.eval_retrieval --experiment hybrid   # vector vs BM25 vs RRF
+    uv run python -m rights_rag.eval_retrieval --experiment rerank   # vector vs reranked top-N
     uv run python -m rights_rag.eval_retrieval --rescore eval/runs/<file>.json
 """
 
@@ -144,6 +145,37 @@ def retrieve_hybrid(questions: list[dict], collection: str = HYBRID_COLLECTION) 
     return run
 
 
+RERANK_DEPTHS = (20, 50)
+
+
+def retrieve_rerank(questions: list[dict], collection: str = HYBRID_COLLECTION) -> dict:
+    """Vector candidates reordered by a cross-encoder, at two candidate depths."""
+    import time
+
+    from rights_rag.index import E5Embedder, open_collection
+    from rights_rag.retrieval import Reranker, Retriever
+
+    embedder = E5Embedder()
+    retriever = Retriever(open_collection(collection), embedder.query)
+    reranker = Reranker()
+    run: dict[str, dict[str, list[dict]]] = {"vector": {}} | {
+        f"rerank@{n}": {} for n in RERANK_DEPTHS
+    }
+    seconds = {n: 0.0 for n in RERANK_DEPTHS}
+    for q in questions:
+        ids = retriever.vector(q["question"], n=max(RERANK_DEPTHS))
+        run["vector"][q["id"]] = retriever.hits(ids, TOP_N)
+        for n in RERANK_DEPTHS:
+            start = time.perf_counter()
+            pairs = [(cid, retriever.chunks[cid]["embed_text"]) for cid in ids[:n]]
+            ranked = reranker.rerank(q["question"], pairs)
+            seconds[n] += time.perf_counter() - start
+            run[f"rerank@{n}"][q["id"]] = retriever.hits(ranked, TOP_N)
+    for n in RERANK_DEPTHS:
+        print(f"rerank@{n}: {1000 * seconds[n] / len(questions):.0f} ms per question")
+    return run
+
+
 def print_report(report: dict) -> None:
     header = (
         f"{'collection':32}"
@@ -174,7 +206,7 @@ def main() -> None:
         "--rescore", type=Path, help="score a saved run without retrieving"
     )
     parser.add_argument(
-        "--experiment", choices=["chunking", "hybrid"], default="chunking"
+        "--experiment", choices=["chunking", "hybrid", "rerank"], default="chunking"
     )
     args = parser.parse_args()
 
@@ -187,6 +219,8 @@ def main() -> None:
     else:
         if args.experiment == "hybrid":
             run = retrieve_hybrid(questions)
+        elif args.experiment == "rerank":
+            run = retrieve_rerank(questions)
         else:
             run = retrieve(questions, COLLECTIONS)
         RUNS.mkdir(parents=True, exist_ok=True)

@@ -98,3 +98,29 @@ class Retriever:
 
     def hits(self, ids: list[str], n: int) -> list[dict]:
         return [{"chunk_id": cid, **self.chunks[cid]} for cid in ids[:n]]
+
+
+RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
+
+
+class Reranker:
+    """Cross-encoder: reads question and chunk together and scores relevance.
+    Far more accurate than comparing two separate vectors, but too slow to run
+    on every chunk, so it only reorders the vector search's candidates."""
+
+    def __init__(self, model_name: str = RERANK_MODEL):
+        import torch
+        from sentence_transformers import CrossEncoder
+
+        device = "mps" if torch.backends.mps.is_available() else "cpu"
+        self.model = CrossEncoder(model_name, device=device, max_length=512)
+
+    def rerank(self, question: str, candidates: list[tuple[str, str]]) -> list[str]:
+        """candidates: (chunk_id, text) pairs. Returns ids, most relevant first."""
+        if not candidates:
+            return []
+        scores = self.model.predict(
+            [(question, text) for _, text in candidates], batch_size=16
+        )
+        order = sorted(range(len(candidates)), key=lambda i: scores[i], reverse=True)
+        return [candidates[i][0] for i in order]
