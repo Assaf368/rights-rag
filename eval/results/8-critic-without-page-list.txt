@@ -1,0 +1,4 @@
+run: critic_20261029-125458.json
+expected retry_with_rewrite   right 2/3  got {'retry_with_rewrite': 2, 'accept': 1}
+expected accept               right 15/16  got {'accept': 15, 'retry_with_rewrite': 1}
+expected keep                 right 3/38  got {'retry_with_rewrite': 35, 'accept': 3}

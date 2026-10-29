@@ -1,0 +1,41 @@
+run: answers_all_unanswerable_20261028-143024.json
+split: all
+
+metric                                              v0        v1
+abstained, unanswerable (higher is better)        0.65      1.00
+  ...with the exact abstention sentence           0.00      0.97
+abstained, answerable (lower is better)           0.00      0.00
+key facts in answer                               1.00      1.00
+  ...stated though missing from sources           0.00      0.00
+answerable: answers with «quote» [n]              0.00      1.00
+unanswerable: answers with «quote» [n]            0.00      0.65
+citations found in their source                      -      1.00
+v2 gate: blocked, answerable (lower is better)      1.00      0.00
+v2 gate: key facts after the gate                 0.00      1.00
+v2 gate: abstained or blocked, unanswerable       1.00      1.00
+citations checked                                    0        45
+answer length, answerable (chars)                  630      1010
+answer length, unanswerable (chars)                595       397
+sent to the critic (v3)                           0.00      0.00
+searched again after the critic (v3)              0.00      0.00
+retried after a failed gate (v2)                  0.00      0.00
+refusals                                             0         0
+answer cost ($)                                  0.262     0.307
+
+judge v1 (Haiku, reference facts only), not deterministic:
+  v0 answerable:   CORRECT 1.00
+  v0 unanswerable: ABSTAINED 0.76, HALLUCINATED 0.24
+  v0 agrees with answer keys on 100% of keyed questions
+  v1 answerable:   CORRECT 1.00
+  v1 unanswerable: ABSTAINED 1.00
+  v1 agrees with answer keys on 100% of keyed questions
+
+judge v2 (Haiku, also sees the sources), not deterministic:
+  v0 answerable:   CORRECT 1.00
+  v0 unanswerable: ABSTAINED 0.85, HALLUCINATED 0.15
+  v0 agrees with answer keys on 100% of keyed questions
+  v1 answerable:   CORRECT 1.00
+  v1 unanswerable: ABSTAINED 1.00
+  v1 agrees with answer keys on 100% of keyed questions
+
+n = {'answerable': 1, 'unanswerable': 34, 'keyed': 1}

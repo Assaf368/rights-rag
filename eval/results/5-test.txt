@@ -1,0 +1,36 @@
+run: answers_test_20261029-111725.json
+split: test
+
+metric                                          v0@claude-sonnet-5-5  v1.1@claude-sonnet-5-5     v2@claude-haiku-5-5
+abstained, unanswerable (higher is better)                      0.42                    1.00                    0.92
+  ...with the exact abstention sentence                         0.00                    1.00                    0.92
+abstained, answerable (lower is better)                         0.00                    0.00                    0.00
+key facts in answer                                             1.00                    1.00                    1.00
+  ...stated though missing from sources                         0.00                    0.00                    0.00
+answerable: answers with «quote» [n]                            0.00                    1.00                    1.00
+unanswerable: answers with «quote» [n]                          0.00                    0.00                    0.08
+citations found in their source                                    -                    0.99                    1.00
+v2 gate: blocked, answerable (lower is better)                    1.00                    0.05                    0.00
+v2 gate: key facts after the gate                               0.00                    1.00                    1.00
+v2 gate: abstained or blocked, unanswerable                     1.00                    1.00                    0.92
+citations checked                                                  0                      95                      67
+answer length, answerable (chars)                                752                     816                     695
+answer length, unanswerable (chars)                              678                      32                      84
+sent to the critic (v3)                                         0.00                    0.00                    0.00
+searched again after the critic (v3)                            0.00                    0.00                    0.00
+retried after a failed gate (v2)                                0.00                    0.00                    0.06
+refusals                                                           0                       0                       0
+answer cost ($)                                                0.268                   0.317                   0.029
+
+judge v2 (Haiku, also sees the sources), not deterministic:
+  v0@claude-sonnet-5-5 answerable:   CORRECT 0.85, UNSUPPORTED 0.15
+  v0@claude-sonnet-5-5 unanswerable: ABSTAINED 0.83, HALLUCINATED 0.17
+  v0@claude-sonnet-5-5 agrees with answer keys on 75% of keyed questions
+  v1.1@claude-sonnet-5-5 answerable:   CORRECT 0.90, PARTIAL 0.10
+  v1.1@claude-sonnet-5-5 unanswerable: ABSTAINED 1.00
+  v1.1@claude-sonnet-5-5 agrees with answer keys on 92% of keyed questions
+  v2@claude-haiku-5-5 answerable:   CORRECT 0.85, PARTIAL 0.10, UNSUPPORTED 0.05
+  v2@claude-haiku-5-5 unanswerable: ABSTAINED 1.00
+  v2@claude-haiku-5-5 agrees with answer keys on 83% of keyed questions
+
+n = {'answerable': 20, 'unanswerable': 12, 'keyed': 12}

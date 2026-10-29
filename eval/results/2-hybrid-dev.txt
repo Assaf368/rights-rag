@@ -1,0 +1,17 @@
+run: hybrid_dev_20261028-120952.json
+split: dev
+
+collection                         hit@1   hit@3   hit@5  hit@10     mrr
+vector                              0.44    0.72    0.78    0.86    0.59
+bm25                                0.20    0.40    0.50    0.58    0.32
+bm25_prefix                         0.14    0.46    0.52    0.56    0.29
+hybrid                              0.34    0.52    0.68    0.82    0.47
+hybrid_prefix                       0.32    0.58    0.72    0.80    0.48
+
+hit@5 by question type:
+collection                        condition confusable   disputed        law multi_fact   negation     number     simple      table
+vector                                 0.75       0.75       0.00       1.00       0.60       0.62       0.92       1.00       1.00
+bm25                                   0.42       0.25       0.00       1.00       0.40       0.62       0.50       0.50       0.75
+bm25_prefix                            0.42       0.50       0.00       0.50       0.60       0.62       0.50       0.50       0.75
+hybrid                                 0.67       0.50       0.00       1.00       0.80       0.62       0.75       0.50       0.75
+hybrid_prefix                          0.67       0.75       0.00       0.50       0.80       0.88       0.58       1.00       1.00

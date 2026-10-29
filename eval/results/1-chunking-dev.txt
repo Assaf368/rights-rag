@@ -1,0 +1,15 @@
+run: retrieval_dev_20261028-113215.json
+split: dev
+
+collection                         hit@1   hit@3   hit@5  hit@10     mrr
+fixed__e5-large                     0.30    0.50    0.56    0.66    0.42
+unit__e5-large                      0.22    0.46    0.50    0.68    0.36
+unit_headings__e5-large             0.32    0.56    0.64    0.74    0.46
+structure_headings__e5-large        0.44    0.72    0.78    0.86    0.59
+
+hit@5 by question type:
+collection                        condition confusable   disputed        law multi_fact   negation     number     simple      table
+fixed__e5-large                        0.25       0.75       0.00       1.00       0.00       0.75       0.83       0.50       0.75
+unit__e5-large                         0.25       0.75       0.00       0.50       0.00       0.50       0.92       1.00       0.25
+unit_headings__e5-large                0.42       1.00       0.00       1.00       0.40       0.62       0.83       1.00       0.50
+structure_headings__e5-large           0.75       0.75       0.00       1.00       0.60       0.62       0.92       1.00       1.00

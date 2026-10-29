@@ -1,0 +1,45 @@
+run: answers_dev_20261028-152311.json
+split: dev
+
+metric                                                           v1                   v1.1  v1.1@claude-haiku-5-5    v2@claude-haiku-5-5  v2.1@claude-haiku-5-5    v3@claude-haiku-5-5
+abstained, unanswerable (higher is better)                     1.00                   0.95                   0.91                   0.91                   0.77                   0.82
+  ...with the exact abstention sentence                        1.00                   0.91                   0.91                   0.86                   0.77                   0.82
+abstained, answerable (lower is better)                        0.02                   0.02                   0.00                   0.04                   0.02                   0.02
+key facts in answer                                            0.97                   0.97                   0.92                   0.94                   0.94                   0.94
+  ...stated though missing from sources                        0.00                   0.00                   0.00                   0.00                   0.00                   0.00
+answerable: answers with «quote» [n]                           1.00                   0.98                   1.00                   0.96                   0.98                   1.00
+unanswerable: answers with «quote» [n]                         0.68                   0.09                   0.09                   0.14                   0.23                   0.18
+citations found in their source                                0.97                   1.00                   0.98                   1.00                   1.00                   1.00
+v2 gate: blocked, answerable (lower is better)                   0.12                   0.02                   0.08                   0.02                   0.00                   0.00
+v2 gate: key facts after the gate                              0.86                   0.94                   0.86                   0.94                   0.94                   0.94
+v2 gate: abstained or blocked, unanswerable                    1.00                   0.95                   0.91                   0.91                   0.77                   0.82
+citations checked                                               292                    225                    176                    168                    172                    187
+answer length, answerable (chars)                               972                    785                    656                    624                    700                    683
+answer length, unanswerable (chars)                             410                     71                     78                     93                     95                    100
+sent to the critic (v3)                                        0.00                   0.00                   0.00                   0.00                   0.00                   0.32
+searched again after the critic (v3)                           0.00                   0.00                   0.00                   0.00                   0.00                   0.01
+retried after a failed gate (v2)                               0.00                   0.00                   0.00                   0.03                   0.07                   0.05
+refusals                                                          0                      0                      0                      0                      0                      0
+answer cost ($)                                               0.896                   0.78                  0.062                  0.063                  0.071                  0.284
+
+judge v2 (Haiku, also sees the sources), not deterministic:
+  v1 answerable:   ABSTAINED 0.02, CORRECT 0.84, INCORRECT 0.02, PARTIAL 0.08, UNSUPPORTED 0.04
+  v1 unanswerable: ABSTAINED 1.00
+  v1 agrees with answer keys on 89% of keyed questions
+  v1.1 answerable:   ABSTAINED 0.02, CORRECT 0.82, PARTIAL 0.16
+  v1.1 unanswerable: ABSTAINED 1.00
+  v1.1 agrees with answer keys on 83% of keyed questions
+  v1.1@claude-haiku-5-5 answerable:   ABSTAINED 0.02, CORRECT 0.75, PARTIAL 0.24
+  v1.1@claude-haiku-5-5 unanswerable: ABSTAINED 0.95, HALLUCINATED 0.05
+  v1.1@claude-haiku-5-5 agrees with answer keys on 69% of keyed questions
+  v2@claude-haiku-5-5 answerable:   ABSTAINED 0.04, CORRECT 0.76, PARTIAL 0.12, UNSUPPORTED 0.08
+  v2@claude-haiku-5-5 unanswerable: ABSTAINED 1.00
+  v2@claude-haiku-5-5 agrees with answer keys on 81% of keyed questions
+  v2.1@claude-haiku-5-5 answerable:   ABSTAINED 0.02, CORRECT 0.75, PARTIAL 0.12, UNSUPPORTED 0.12
+  v2.1@claude-haiku-5-5 unanswerable: ABSTAINED 1.00
+  v2.1@claude-haiku-5-5 agrees with answer keys on 75% of keyed questions
+  v3@claude-haiku-5-5 answerable:   ABSTAINED 0.02, CORRECT 0.76, PARTIAL 0.16, UNSUPPORTED 0.06
+  v3@claude-haiku-5-5 unanswerable: ABSTAINED 1.00
+  v3@claude-haiku-5-5 agrees with answer keys on 81% of keyed questions
+
+n = {'answerable': 51, 'unanswerable': 22, 'keyed': 36}

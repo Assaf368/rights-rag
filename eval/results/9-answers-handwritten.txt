@@ -1,0 +1,39 @@
+run: answers_assaf_20261029-113545.json
+split: assaf
+
+metric                                        v1.1@claude-sonnet-5-5     v2@claude-haiku-5-5   v2.1@claude-haiku-5-5     v3@claude-haiku-5-5
+abstained, unanswerable (higher is better)                      0.80                    0.60                    0.40                    0.60
+  ...with the exact abstention sentence                         0.80                    0.40                    0.40                    0.40
+abstained, answerable (lower is better)                         0.04                    0.04                    0.04                    0.04
+key facts in answer                                             0.96                    0.91                    0.91                    0.96
+  ...stated though missing from sources                         0.00                    0.00                    0.00                    0.00
+answerable: answers with «quote» [n]                            1.00                    0.96                    0.96                    1.00
+unanswerable: answers with «quote» [n]                          0.20                    0.60                    0.60                    0.60
+citations found in their source                                 1.00                    1.00                    1.00                    1.00
+v2 gate: blocked, answerable (lower is better)                    0.00                    0.04                    0.04                    0.00
+v2 gate: key facts after the gate                               0.96                    0.91                    0.91                    0.96
+v2 gate: abstained or blocked, unanswerable                     0.80                    0.60                    0.40                    0.60
+citations checked                                                 99                      79                      90                      93
+answer length, answerable (chars)                                797                     664                     660                     706
+answer length, unanswerable (chars)                              182                     511                     364                     463
+sent to the critic (v3)                                         0.00                    0.00                    0.00                    0.21
+searched again after the critic (v3)                            0.00                    0.00                    0.00                    0.07
+retried after a failed gate (v2)                                0.00                    0.14                    0.14                    0.11
+refusals                                                           0                       0                       0                       0
+answer cost ($)                                                0.341                   0.034                   0.035                   0.096
+
+judge v2 (Haiku, also sees the sources), not deterministic:
+  v1.1@claude-sonnet-5-5 answerable:   CORRECT 0.74, PARTIAL 0.17, UNSUPPORTED 0.09
+  v1.1@claude-sonnet-5-5 unanswerable: ABSTAINED 1.00
+  v1.1@claude-sonnet-5-5 agrees with answer keys on 70% of keyed questions
+  v2@claude-haiku-5-5 answerable:   ABSTAINED 0.04, CORRECT 0.91, UNSUPPORTED 0.04
+  v2@claude-haiku-5-5 unanswerable: ABSTAINED 1.00
+  v2@claude-haiku-5-5 agrees with answer keys on 91% of keyed questions
+  v2.1@claude-haiku-5-5 answerable:   ABSTAINED 0.04, CORRECT 0.83, PARTIAL 0.04, UNSUPPORTED 0.09
+  v2.1@claude-haiku-5-5 unanswerable: ABSTAINED 1.00
+  v2.1@claude-haiku-5-5 agrees with answer keys on 83% of keyed questions
+  v3@claude-haiku-5-5 answerable:   CORRECT 0.78, PARTIAL 0.04, UNSUPPORTED 0.17
+  v3@claude-haiku-5-5 unanswerable: ABSTAINED 1.00
+  v3@claude-haiku-5-5 agrees with answer keys on 74% of keyed questions
+
+n = {'answerable': 23, 'unanswerable': 5, 'keyed': 23}

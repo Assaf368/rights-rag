@@ -1,0 +1,13 @@
+run: rewrite_dev_20261029-122450.json
+split: dev
+
+collection                         hit@1   hit@3   hit@5  hit@10     mrr
+rerank@20                           0.55    0.82    0.88    0.90    0.68
+rewrite                             0.45    0.65    0.78    0.90    0.58
+question+rewrite                    0.49    0.67    0.80    0.90    0.61
+
+hit@5 by question type:
+collection                        condition confusable   disputed        law multi_fact   negation     number     simple      table
+rerank@20                              0.83       1.00       0.00       1.00       1.00       0.75       0.92       1.00       1.00
+rewrite                                0.67       1.00       0.00       0.50       0.80       0.88       0.83       0.67       1.00
+question+rewrite                       0.75       1.00       0.00       0.50       0.80       0.88       0.83       0.67       1.00

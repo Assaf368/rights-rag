@@ -1,0 +1,13 @@
+run: rerank_assaf_20261029-113227.json
+split: assaf
+
+collection                         hit@1   hit@3   hit@5  hit@10     mrr
+vector                              0.61    0.78    0.83    0.87    0.69
+rerank@20                           0.57    0.83    0.83    0.96    0.71
+rerank@50                           0.57    0.78    0.87    1.00    0.71
+
+hit@5 by question type:
+collection                        condition confusable multi_fact   negation     number     simple      slang      table
+vector                                 1.00       0.67       0.67       0.67       1.00       0.67       1.00       1.00
+rerank@20                              0.67       0.33       0.67       1.00       1.00       1.00       1.00       1.00
+rerank@50                              0.67       0.67       0.67       1.00       1.00       1.00       1.00       1.00

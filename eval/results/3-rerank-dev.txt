@@ -1,0 +1,13 @@
+run: rerank_dev_20261028-122009.json
+split: dev
+
+collection                         hit@1   hit@3   hit@5  hit@10     mrr
+vector                              0.44    0.72    0.78    0.86    0.59
+rerank@20                           0.54    0.82    0.88    0.90    0.67
+rerank@50                           0.56    0.80    0.88    0.94    0.69
+
+hit@5 by question type:
+collection                        condition confusable   disputed        law multi_fact   negation     number     simple      table
+vector                                 0.75       0.75       0.00       1.00       0.60       0.62       0.92       1.00       1.00
+rerank@20                              0.83       1.00       0.00       1.00       1.00       0.75       0.92       1.00       1.00
+rerank@50                              0.75       1.00       0.00       1.00       1.00       0.75       1.00       1.00       1.00

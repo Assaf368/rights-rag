@@ -1,0 +1,41 @@
+run: answers_dev_20261028-141012.json
+split: dev
+
+metric                                              v0        v1
+abstained, unanswerable (higher is better)        1.00      1.00
+  ...with the exact abstention sentence           0.00      1.00
+abstained, answerable (lower is better)           0.02      0.04
+key facts in answer                               0.97      0.97
+  ...stated though missing from sources           0.00      0.00
+answerable: answers with «quote» [n]              0.00      1.00
+unanswerable: answers with «quote» [n]            0.00      0.50
+citations found in their source                      -      1.00
+v2 gate: blocked, answerable (lower is better)      1.00      0.02
+v2 gate: key facts after the gate                 0.00      0.94
+v2 gate: abstained or blocked, unanswerable       1.00      1.00
+citations checked                                    0       257
+answer length, answerable (chars)                  748       966
+answer length, unanswerable (chars)                407       288
+sent to the critic (v3)                           0.00      0.00
+searched again after the critic (v3)              0.00      0.00
+retried after a failed gate (v2)                  0.00      0.00
+refusals                                             0         0
+answer cost ($)                                  0.459     0.715
+
+judge v1 (Haiku, reference facts only), not deterministic:
+  v0 answerable:   CORRECT 0.90, INCORRECT 0.04, PARTIAL 0.06
+  v0 unanswerable: ABSTAINED 1.00
+  v0 agrees with answer keys on 94% of keyed questions
+  v1 answerable:   ABSTAINED 0.02, CORRECT 0.80, PARTIAL 0.18
+  v1 unanswerable: ABSTAINED 1.00
+  v1 agrees with answer keys on 86% of keyed questions
+
+judge v2 (Haiku, also sees the sources), not deterministic:
+  v0 answerable:   CORRECT 0.76, PARTIAL 0.04, UNSUPPORTED 0.20
+  v0 unanswerable: ABSTAINED 1.00
+  v0 agrees with answer keys on 74% of keyed questions
+  v1 answerable:   CORRECT 0.84, INCORRECT 0.02, PARTIAL 0.10, UNSUPPORTED 0.04
+  v1 unanswerable: ABSTAINED 1.00
+  v1 agrees with answer keys on 77% of keyed questions
+
+n = {'answerable': 50, 'unanswerable': 4, 'keyed': 35}

@@ -1,0 +1,15 @@
+run: chunking_test_20261028-122344.json
+split: test
+
+collection                         hit@1   hit@3   hit@5  hit@10     mrr
+fixed__e5-large                     0.40    0.65    0.75    0.75    0.52
+unit__e5-large                      0.25    0.50    0.50    0.65    0.38
+unit_headings__e5-large             0.45    0.55    0.70    0.80    0.54
+structure_headings__e5-large        0.50    0.75    0.85    0.90    0.63
+
+hit@5 by question type:
+collection                        condition confusable        law multi_fact   negation     number     simple      table
+fixed__e5-large                        1.00       1.00       1.00       0.00       0.67       0.83       1.00       0.00
+unit__e5-large                         0.80       0.00       1.00       0.00       0.33       0.50       0.00       1.00
+unit_headings__e5-large                0.80       0.00       1.00       0.50       1.00       0.50       1.00       1.00
+structure_headings__e5-large           1.00       1.00       1.00       0.50       1.00       0.67       1.00       1.00
