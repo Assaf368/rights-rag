@@ -9,6 +9,8 @@ from rights_rag.prompts import PROMPTS
 
 ANSWER_MODEL = "claude-sonnet-5-5"
 ANSWER_EFFORT = "medium"
+# Haiku 5.5 has no server-side fallback; sending one is a 400.
+FALLBACK_MODELS = {"claude-sonnet-5-5"}
 MAX_TOKENS = 4000
 
 
@@ -23,22 +25,27 @@ class Answer:
 
 def claude_caller(
     client: anthropic.Anthropic | None = None,
+    model: str = ANSWER_MODEL,
 ) -> Callable[[str | None, str], Answer]:
     """Return a function (system, user) -> Answer that calls Claude.
 
-    Server-side fallback is on: if the model declines on safety grounds, the
-    API retries on the recommended fallback model in the same call.
+    Server-side fallback is on where the model supports it: if the model
+    declines on safety grounds, the API retries on the recommended fallback
+    model in the same call.
     """
     client = client or anthropic.Anthropic()
 
     def call(system: str | None, user: str) -> Answer:
         kwargs = {"system": system} if system else {}
+        if model in FALLBACK_MODELS:
+            kwargs |= {
+                "betas": ["server-side-fallback-2026-07-01"],
+                "fallbacks": "default",
+            }
         response = client.beta.messages.create(
-            model=ANSWER_MODEL,
+            model=model,
             max_tokens=MAX_TOKENS,
             output_config={"effort": ANSWER_EFFORT},
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
             messages=[{"role": "user", "content": user}],
             **kwargs,
         )

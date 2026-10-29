@@ -8,6 +8,11 @@ saved, so scores can be recomputed without calling any model.
 
     uv run python -m rights_rag.eval_answer --versions v0 v1 --judge
     uv run python -m rights_rag.eval_answer --rescore eval/runs/answers_<file>.json
+    uv run python -m rights_rag.eval_answer --extend eval/runs/answers_<file>.json \
+        --versions v1.1 --model claude-haiku-5-5
+
+A version answered by a model other than the default is saved as
+"<version>@<model>", for example "v1.1@claude-haiku-5-5".
 """
 
 import argparse
@@ -234,16 +239,18 @@ def retrieve_sources(questions: list[dict]) -> dict[str, list[dict]]:
     return sources
 
 
-def generate(questions: list[dict], sources: dict, versions: list[str], call) -> dict:
+def generate(
+    questions: list[dict], sources: dict, versions: list[str], call, label=str
+) -> dict:
+    """Answer every question with every prompt version; keys are label(version)."""
     from rights_rag.answer import answer
 
-    answers = {v: {} for v in versions}
+    answers = {}
     for v in versions:
+        out = answers[label(v)] = {}
         for i, q in enumerate(questions, 1):
-            answers[v][q["id"]] = asdict(
-                answer(q["question"], sources[q["id"]], v, call)
-            )
-            print(f"\r{v}: {i}/{len(questions)}", end="", flush=True)
+            out[q["id"]] = asdict(answer(q["question"], sources[q["id"]], v, call))
+            print(f"\r{label(v)}: {i}/{len(questions)}", end="", flush=True)
         print()
     return answers
 
@@ -362,16 +369,17 @@ def print_report(report: dict) -> None:
         ("citations found in their source", "citations_valid"),
     ]
     versions = list(report)
-    print(f"{'metric':44}" + "".join(f"{v:>10}" for v in versions))
+    w = max(10, *(len(v) + 2 for v in versions))
+    print(f"{'metric':44}" + "".join(f"{v:>{w}}" for v in versions))
     for label, key in rows:
         vals = [report[v][key] for v in versions]
         print(
             f"{label:44}"
-            + "".join(f"{'-' if x is None else f'{x:.2f}':>10}" for x in vals)
+            + "".join(f"{'-' if x is None else f'{x:.2f}':>{w}}" for x in vals)
         )
     print(
         f"{'citations checked':44}"
-        + "".join(f"{report[v]['citations_total']:>10}" for v in versions)
+        + "".join(f"{report[v]['citations_total']:>{w}}" for v in versions)
     )
     for label, key in (
         ("answer length, answerable (chars)", "avg_chars_answerable"),
@@ -380,16 +388,16 @@ def print_report(report: dict) -> None:
         print(
             f"{label:44}"
             + "".join(
-                f"{'-' if report[v][key] is None else report[v][key]:>10}"
+                f"{'-' if report[v][key] is None else report[v][key]:>{w}}"
                 for v in versions
             )
         )
     print(
-        f"{'refusals':44}" + "".join(f"{report[v]['refusals']:>10}" for v in versions)
+        f"{'refusals':44}" + "".join(f"{report[v]['refusals']:>{w}}" for v in versions)
     )
     print(
         f"{'answer cost ($)':44}"
-        + "".join(f"{report[v]['cost_usd']:>10}" for v in versions)
+        + "".join(f"{report[v]['cost_usd']:>{w}}" for v in versions)
     )
     for name, title in (
         ("judge", "judge v1 (Haiku, reference facts only)"),
@@ -438,6 +446,12 @@ def main() -> None:
         "--rescore", type=Path, help="score a saved run (adds judge labels if --judge)"
     )
     parser.add_argument(
+        "--extend",
+        type=Path,
+        help="add --versions to a saved run, answering from its saved sources",
+    )
+    parser.add_argument("--model", help="answer model (default: answer.ANSWER_MODEL)")
+    parser.add_argument(
         "--unanswerable-only",
         action="store_true",
         help="run only questions with no answer",
@@ -454,14 +468,30 @@ def main() -> None:
         path = args.rescore
         run = json.loads(path.read_text(encoding="utf-8"))
     else:
-        from rights_rag.answer import claude_caller
+        from rights_rag.answer import ANSWER_MODEL, claude_caller
 
-        sources = retrieve_sources(questions)
-        run = {"split": args.split, "sources": sources}
-        run["answers"] = generate(questions, sources, args.versions, claude_caller())
-        RUNS.mkdir(parents=True, exist_ok=True)
-        tag = "_unanswerable" if args.unanswerable_only else ""
-        path = RUNS / f"answers_{args.split}{tag}_{datetime.now():%Y%m%d-%H%M%S}.json"
+        model = args.model or ANSWER_MODEL
+        call = claude_caller(model=model)
+
+        def label(v: str) -> str:
+            return v if model == ANSWER_MODEL else f"{v}@{model}"
+
+        if args.extend:
+            path = args.extend
+            run = json.loads(path.read_text(encoding="utf-8"))
+            # Answer only the questions the saved run has sources for.
+            questions = [q for q in questions if q["id"] in run["sources"]]
+            run["answers"] |= generate(
+                questions, run["sources"], args.versions, call, label
+            )
+        else:
+            sources = retrieve_sources(questions)
+            run = {"split": args.split, "sources": sources}
+            run["answers"] = generate(questions, sources, args.versions, call, label)
+            RUNS.mkdir(parents=True, exist_ok=True)
+            tag = "_unanswerable" if args.unanswerable_only else ""
+            stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
+            path = RUNS / f"answers_{args.split}{tag}_{stamp}.json"
     if args.judge:
         import anthropic
 
