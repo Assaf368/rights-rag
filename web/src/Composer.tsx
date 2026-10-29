@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, Shield, Stop } from './icons'
+import { ArrowUp, Stop } from './icons'
 
 type Props = {
   busy: boolean
-  critic: boolean
-  onCritic: (on: boolean) => void
   onSend: (text: string) => void
   onStop: () => void
 }
 
-export function Composer({ busy, critic, onCritic, onSend, onStop }: Props) {
+export function Composer({ busy, onSend, onStop }: Props) {
   const [text, setText] = useState('')
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -46,16 +44,7 @@ export function Composer({ busy, critic, onCritic, onSend, onStop }: Props) {
         }}
       />
       <div className="composer-bar">
-        <button
-          className={`pill ${critic ? 'on' : ''}`}
-          onClick={() => onCritic(!critic)}
-          title="מודל חזק יותר בודק תשובות חשודות, ויכול לחפש שוב"
-          aria-pressed={critic}
-        >
-          <Shield size={15} />
-          מבקר
-        </button>
-        <span className="model">Haiku 5.5{critic ? ' + Sonnet 5.5' : ''}</span>
+        <span className="model">כל ציטוט נבדק מול המקור</span>
         {busy ? (
           <button className="send stop" onClick={onStop} title="עצירה" aria-label="עצירה">
             <Stop size={16} />

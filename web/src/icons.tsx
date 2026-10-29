@@ -113,14 +113,20 @@ export const Briefcase = (p: P) => (
     <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" />
   </Icon>
 )
-export const Coffee = (p: P) => (
+export const Door = (p: P) => (
   <Icon {...p}>
-    <path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9zM17 11h1.5a2.5 2.5 0 0 1 0 5H17M8 3v3M12 3v3" />
+    <path d="M14 3H6v18h8M14 3l5 2v14l-5 2V3zM11 12h.01" />
   </Icon>
 )
-export const Help = (p: P) => (
+export const Sun = (p: P) => (
   <Icon {...p}>
-    <circle cx="12" cy="12" r="8.5" />
-    <path d="M9.5 9.5a2.5 2.5 0 0 1 4.6 1.3c0 1.7-2.1 2.2-2.1 3.7M12 17.5v.01" />
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4" />
+  </Icon>
+)
+export const Baby = (p: P) => (
+  <Icon {...p}>
+    <circle cx="12" cy="8" r="4.5" />
+    <path d="M10.5 8h.01M13.5 8h.01M10.8 10c.7.5 1.7.5 2.4 0M6 21c0-3.3 2.7-6 6-6s6 2.7 6 6" />
   </Icon>
 )

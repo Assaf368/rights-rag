@@ -12,7 +12,6 @@ export type Step = {
 export type Turn = {
   id: string
   question: string
-  critic: boolean
   status: 'streaming' | 'done' | 'error' | 'stopped'
   steps: Step[]
   draft: string // the answer text as it streams; replaced by the final one
@@ -39,11 +38,10 @@ const FLAG_LABEL: Record<string, string> = {
 
 export const newId = () => Math.random().toString(36).slice(2, 10)
 
-export function newTurn(question: string, critic: boolean): Turn {
+export function newTurn(question: string): Turn {
   return {
     id: newId(),
     question,
-    critic,
     status: 'streaming',
     steps: [],
     draft: '',

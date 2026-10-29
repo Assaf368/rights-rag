@@ -271,23 +271,7 @@
   margin-top: 6px;
 }
 
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 11px;
-  border: 1px solid var(--border);
-  border-radius: 99px;
-  font-size: 0.82rem;
-  color: var(--muted);
-  transition: all 0.15s;
-}
 
-.pill.on {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: transparent;
-}
 
 .model {
   flex: 1;

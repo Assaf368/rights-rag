@@ -48,14 +48,13 @@ export type StreamEvent =
 // separated by a blank line.
 export async function askStream(
   question: string,
-  critic: boolean,
   onEvent: (e: StreamEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {
   const res = await fetch('/ask/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, critic }),
+    body: JSON.stringify({ question }), // the critic is on by default
     signal,
   })
   if (!res.ok || !res.body) throw new Error(`השרת החזיר ${res.status}`)

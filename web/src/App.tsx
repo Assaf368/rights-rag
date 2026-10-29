@@ -2,21 +2,21 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { askStream } from './api'
 import { applyEvent, load, newConversation, newTurn, save, type Conversation, type Turn } from './chat'
 import { Composer } from './Composer'
-import { ArrowDown, Briefcase, Clock, Coffee, Help, Menu, Plus, Scale, Trash } from './icons'
+import { ArrowDown, Baby, Briefcase, Door, Menu, Plus, Scale, Sun, Trash } from './icons'
 import { AssistantMessage, UserMessage } from './Message'
 import './App.css'
 
+// Questions the sources answer well (checked against the golden set).
 const SUGGESTIONS = [
   { icon: Briefcase, text: 'עבדתי שנה וחצי בשכר שעתי ופוטרתי. כמה זמן מראש היו צריכים להודיע לי?' },
-  { icon: Coffee, text: 'אני עובד משרדי 9 שעות ביום. מגיעה לי הפסקת אוכל?' },
-  { icon: Clock, text: 'נשארתי 11 שעות, והמנהל אמר שאצא מוקדם מחר ולכן אין שעות נוספות. זה חוקי?' },
-  { icon: Help, text: 'מותר למעסיק לדרוש ממני בדיקת פוליגרף?' },
+  { icon: Door, text: 'העיפו אותי מהעבודה מיד, בלי שום הודעה מוקדמת. מה מגיע לי?' },
+  { icon: Sun, text: 'כמה ימי הבראה מגיעים לי בשנה הראשונה במגזר הפרטי?' },
+  { icon: Baby, text: 'אשתי ילדה. כמה ימים מותר לי לא להגיע לעבודה, ומה משלמים לי עליהם?' },
 ]
 
 export default function App() {
   const [conversations, setConversations] = useState<Conversation[]>(load)
   const [currentId, setCurrentId] = useState<string | null>(null)
-  const [critic, setCritic] = useState(true)
   const [sidebar, setSidebar] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
   const abort = useRef<AbortController | null>(null)
@@ -45,7 +45,7 @@ export default function App() {
     const controller = new AbortController()
     abort.current = controller
     try {
-      await askStream(turn.question, turn.critic, (e) => updateTurn(convId, turn.id, (t) => applyEvent(t, e)), controller.signal)
+      await askStream(turn.question, (e) => updateTurn(convId, turn.id, (t) => applyEvent(t, e)), controller.signal)
       updateTurn(convId, turn.id, (t) =>
         t.status === 'streaming' ? { ...t, status: 'error', error: 'החיבור נסגר לפני סוף התשובה' } : t,
       )
@@ -60,7 +60,7 @@ export default function App() {
   }
 
   function send(text: string) {
-    const turn = newTurn(text, critic)
+    const turn = newTurn(text)
     let convId = currentId
     if (!current) {
       const conv = newConversation(turn)
@@ -78,7 +78,7 @@ export default function App() {
 
   function retry(turn: Turn) {
     if (!current || busy) return
-    const fresh = { ...newTurn(turn.question, critic), id: turn.id }
+    const fresh = { ...newTurn(turn.question), id: turn.id }
     updateTurn(current.id, turn.id, () => fresh)
     run(current.id, fresh)
   }
@@ -151,7 +151,7 @@ export default function App() {
               </div>
               <h1>מה תרצו לדעת על הזכויות שלכם?</h1>
               <p className="muted">פיטורים, הודעה מוקדמת, שעות נוספות, חופשה, הבראה, לידה ועוד.</p>
-              <Composer busy={busy} critic={critic} onCritic={setCritic} onSend={send} onStop={() => abort.current?.abort()} />
+              <Composer busy={busy} onSend={send} onStop={() => abort.current?.abort()} />
               <div className="suggestions">
                 {SUGGESTIONS.map(({ icon: Icon, text }) => (
                   <button key={text} className="suggestion" onClick={() => send(text)}>
@@ -187,7 +187,7 @@ export default function App() {
               </button>
             )}
             <div className="dock">
-              <Composer busy={busy} critic={critic} onCritic={setCritic} onSend={send} onStop={() => abort.current?.abort()} />
+              <Composer busy={busy} onSend={send} onStop={() => abort.current?.abort()} />
               <p className="dock-note">כל שאלה נענית בנפרד מתוך המקורות. המידע כללי ואינו ייעוץ משפטי.</p>
             </div>
           </>
