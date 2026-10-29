@@ -30,6 +30,7 @@ RETRIEVAL = [
     ("3-rerank-handwritten", "rerank_assaf_20261029-113227.json"),
     ("7-rewrite-dev", "rewrite_dev_20261029-122450.json"),
     ("7-rewrite-handwritten", "rewrite_assaf_20261029-123537.json"),
+    ("10-rerank-hard", "rerank_hard_20261029-152324.json"),
 ]
 ANSWERS = [
     ("4-prompt-v0-v1-dev", "answers_dev_20261028-141012.json"),
@@ -37,6 +38,7 @@ ANSWERS = [
     ("5-test", "answers_test_20261029-111725.json"),
     ("6-9-answers-dev", "answers_dev_20261028-152311.json"),
     ("9-answers-handwritten", "answers_assaf_20261029-113545.json"),
+    ("10-answers-hard", "answers_hard_20261029-152617.json"),
 ]
 CRITIC = [
     ("8-critic-without-page-list", "critic_20261029-125458.json"),

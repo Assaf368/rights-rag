@@ -83,13 +83,14 @@ wages, hours, leave, parenthood, pensions and unemployment. 28 saved as PDF,
 22 as HTML converted to Word, to exercise both loaders. Many pages cover
 close topics with similar numbers, which makes retrieval genuinely hard.
 
-**Golden set.** 143 questions in Hebrew, written the way a worker would ask:
+**Golden set.** 154 questions in Hebrew, written the way a worker would ask:
 
 | Set | Questions | Use |
 |---|---|---|
 | dev | 73 (51 answerable, 22 not) | all tuning |
-| test | 32 (20 answerable, 12 not) | run once per milestone |
+| test | 32 (20 answerable, 12 not) | held out: each version run once, after tuning |
 | hand-written | 38 (including 10 in slang) | a check on the dev/test set, written separately |
+| hand-written, hard | 11 (7 answerable, 4 not) | answers buried in side sections of a page, aimed at the reviewer |
 
 Questions cover simple facts, exact numbers, conditions, negations and
 exceptions, confusable topics, two-fact answers, tables, and questions the
@@ -110,7 +111,9 @@ it, not with chunk ids, so the same labels score every chunking strategy.
   alone. A first version of the judge, which saw only the reference facts,
   rated the bare prompt *higher* than the improved one: it could not see that
   the bare prompt answered from memory. The second version also sees the
-  sources.
+  sources. Since answers moved to Haiku, a Haiku judge grades its own model's
+  answers; on the test split the same judge on Sonnet gave the same picture
+  (no hallucinations, Sonnet slightly stricter on unsupported claims).
 
 Every run saves raw outputs, so scores can be recomputed without calling a
 model. Score summaries of the runs behind each table are in
@@ -177,16 +180,21 @@ what the sources *did* say (410 characters on average). v1.1 answers with the
 abstention sentence alone (71 characters), and shortened answerable answers
 from 972 to 785 characters.
 
-### 5. Held-out test split (run once)
+### 5. Held-out test split
 
-| | v0, Sonnet | v1.1, Sonnet | **v2, Haiku** |
-|---|---|---|---|
-| Abstained on unanswerable | 0.42 | 1.00 | 0.92 |
-| Judge: hallucinated on unanswerable | 0.17 | 0.00 | 0.00 |
-| Key facts | 1.00 | 1.00 | 1.00 |
-| Answers with citations | 0.00 | 1.00 | 1.00 |
-| Quotes found in their source | – | 0.99 | 1.00 |
-| Cost | $0.27 | $0.32 | **$0.03** |
+Each version run once on the test split, after all tuning on dev; the last
+column is the configuration the API runs.
+
+| | v0, Sonnet | v1.1, Sonnet | v2, Haiku | v2.1, Haiku | **v3, Haiku** |
+|---|---|---|---|---|---|
+| Key facts | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| Quotes found in their source | – | 0.99 | 1.00 | 1.00 | 1.00 |
+| Unanswerable: abstained (code check) | 0.42 | 1.00 | 0.92 | 1.00 | 0.83 |
+| Unanswerable: judged hallucinated (Haiku / Sonnet judge) | 0.17 / – | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| Cost | $0.27 | $0.32 | $0.03 | $0.03 | $0.14 |
+
+The bare prompt answered 58% of the questions it should not have, and made
+up an answer to 17%. Every later version made up none.
 
 ### 6. A cheaper model, made safe by the citation check
 
@@ -200,6 +208,28 @@ Haiku's failed quotes were near misses (a dropped parenthesis, a changed
 plural, "..." inside a quote), not inventions. Blocking alone discarded
 correct answers; one retry with the failed quotes listed fixed 5 of 6. Result:
 Sonnet's accuracy at a twelfth of the cost.
+
+**Then v2.1: partial answers, on purpose.** Prompt v1.2 changes one rule.
+When the sources say nothing relevant, the answer is the exact abstention
+sentence, as before. When they cover part of the question, the model answers
+that part and says, in its own words, what is not covered; and it may not
+apply a related rule to the user's case unless the source says it applies.
+
+| dev | v2 | v2.1 |
+|---|---|---|
+| Unanswerable: exact abstention sentence | 0.86 | 0.77 |
+| Unanswerable: judged abstained, not hallucinated | 1.00 | 1.00 |
+| Key facts | 0.94 | 0.94 |
+
+The deterministic metric went down, and this was accepted as a product
+decision: a worker asking about something the pages only touch on is better
+served by "the sources do not cover X, but they do say Y" than by a bare "I
+don't know". The rule against applying a related rule came from one error:
+asked whether changing into a work uniform is paid time, Haiku with v1.1
+applied the rule on shift preparation to the user's case and was judged to
+have made it up; with v1.2 it says the sources do not settle it. That is one
+example, not a measured effect. Because this moves the measure of success
+from code to the judge, both numbers are reported.
 
 ### 7. Query rewriting: only on demand
 
@@ -229,19 +259,34 @@ back to search ("Kol Zchut has a page on polygraph tests"). Giving it the
 titles of the 50 pages actually indexed fixed this. In a live loop the first
 version would have doubled the cost of every unanswerable question.
 
+Both this fix and the rule for which answers reach the reviewer were chosen
+on these same answers. On the held-out test split the reviewer did worse: it
+sent 3 of 11 correct abstentions to an unneeded second search (8% here, 27%
+there). The second search found nothing and they stayed abstentions, so the
+cost was money, not answers.
+
 ### 9. The review loop (v3)
 
-| | v2.1 | **v3** |
-|---|---|---|
-| Key facts | 0.94 | 0.94 |
-| Quotes found in their source | 1.00 | 1.00 |
-| Answers sent to the reviewer | – | 32% |
-| Searched again | – | 1 question |
-| Cost | $0.07 | $0.28 |
+| | dev v2.1 | dev **v3** | test v2.1 | test **v3** | hard v2.1 | hard **v3** |
+|---|---|---|---|---|---|---|
+| Key facts | 0.94 | 0.94 | 1.00 | 1.00 | 0.86 | 1.00 |
+| Answers sent to the reviewer | – | 32% | – | 38% | – | 27% |
+| Searched again | – | 1 | – | 3 | – | 0 |
+| Questions rescued | – | **1** | – | 0 | – | 0 |
+| Cost | $0.07 | $0.28 | $0.03 | $0.14 | $0.01 | $0.04 |
 
-The reviewer rescued one question every earlier version abstained on and
-broke none, at four times the cost (still a third of Sonnet answering alone).
-It is on by default; the API can turn it off per request.
+On dev the reviewer rescued one question every earlier version abstained on
+(an employee told to leave early the next day instead of being paid
+overtime) and broke none. On held-out data it rescued nothing; the higher key
+facts on the hard set come from a question it never reviewed, so they are
+sampling noise, not the reviewer.
+
+The reason is retrieval, not the reviewer: the reranker found the answer in
+the top 3 for all 7 hard questions, which were written to be hard to find. A
+reviewer can only fix what retrieval misses, and over 50 pages retrieval
+rarely misses. It stays on by default as a deliberate choice: in this domain
+a needless "I don't know" or a wrong answer costs more than a few cents per
+hundred questions. The API can turn it off per request.
 
 ## What did not work, and what that taught
 
@@ -253,6 +298,9 @@ It is on by default; the API can turn it off per request.
   everything it knows, and second-guesses correct "I don't know"s.
 - **Blocking unverifiable quotes without a retry** throws away good answers;
   the retry is what made the cheaper model usable.
+- **A reviewer is only as useful as retrieval is weak.** Over 50 pages,
+  retrieval rarely misses, so a well-built review loop had almost nothing to
+  fix on held-out data.
 
 ## Limits
 
@@ -263,6 +311,10 @@ It is on by default; the API can turn it off per request.
 - **Flags catch about half of the wrong answers.** An answer that is confident
   but incomplete, because the right passage was not retrieved, is not
   flagged, so the reviewer never sees it.
+- **The reviewer was tuned on the data it was first measured on.** The flag
+  rule and the page list were chosen on the same saved answers; held-out
+  results are weaker (section 8). Showing what the reviewer is worth needs
+  more questions that retrieval genuinely misses, or a larger corpus.
 - **Partial answers to unanswerable questions.** Haiku sometimes says the
   sources do not cover the question and then adds related facts. The judge
   counts these as honest; the exact-sentence metric does not.

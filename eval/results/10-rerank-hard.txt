@@ -1,0 +1,13 @@
+run: rerank_hard_20261029-152324.json
+split: hard
+
+collection                         hit@1   hit@3   hit@5  hit@10     mrr
+vector                              0.43    0.71    0.86    1.00    0.59
+rerank@20                           0.57    1.00    1.00    1.00    0.76
+rerank@50                           0.57    1.00    1.00    1.00    0.76
+
+hit@5 by question type:
+collection                        condition multi_fact   negation     number
+vector                                 1.00       0.67       1.00       1.00
+rerank@20                              1.00       1.00       1.00       1.00
+rerank@50                              1.00       1.00       1.00       1.00

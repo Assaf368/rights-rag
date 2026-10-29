@@ -1,0 +1,33 @@
+run: answers_hard_20261029-152617.json
+split: hard
+
+metric                                        v2.1@claude-haiku-5-5    v3@claude-haiku-5-5
+abstained, unanswerable (higher is better)                     0.75                   0.75
+  ...with the exact abstention sentence                        0.75                   0.75
+abstained, answerable (lower is better)                        0.00                   0.14
+key facts in answer                                            0.86                   1.00
+  ...stated though missing from sources                        0.00                   0.00
+answerable: answers with «quote» [n]                           1.00                   1.00
+unanswerable: answers with «quote» [n]                         0.25                   0.25
+citations found in their source                                1.00                   1.00
+v2 gate: blocked, answerable (lower is better)                   0.00                   0.00
+v2 gate: key facts after the gate                              0.86                   1.00
+v2 gate: abstained or blocked, unanswerable                    0.75                   0.75
+citations checked                                                26                     24
+answer length, answerable (chars)                               640                    804
+answer length, unanswerable (chars)                             163                    108
+sent to the critic (v3)                                        0.00                   0.27
+searched again after the critic (v3)                           0.00                   0.00
+retried after a failed gate (v2)                               0.00                   0.00
+refusals                                                          0                      0
+answer cost ($)                                                0.01                  0.037
+
+judge v2 (Haiku, also sees the sources), not deterministic:
+  v2.1@claude-haiku-5-5 answerable:   CORRECT 0.86, PARTIAL 0.14
+  v2.1@claude-haiku-5-5 unanswerable: ABSTAINED 1.00
+  v2.1@claude-haiku-5-5 agrees with answer keys on 100% of keyed questions
+  v3@claude-haiku-5-5 answerable:   CORRECT 0.86, PARTIAL 0.14
+  v3@claude-haiku-5-5 unanswerable: ABSTAINED 1.00
+  v3@claude-haiku-5-5 agrees with answer keys on 86% of keyed questions
+
+n = {'answerable': 7, 'unanswerable': 4, 'keyed': 7}

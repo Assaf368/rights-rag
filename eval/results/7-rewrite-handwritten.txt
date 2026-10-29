@@ -2,12 +2,12 @@ run: rewrite_assaf_20261029-123537.json
 split: assaf
 
 collection                         hit@1   hit@3   hit@5  hit@10     mrr
-rerank@20                           0.59    0.84    0.88    0.97    0.73
-rewrite                             0.44    0.81    0.91    0.97    0.64
-question+rewrite                    0.50    0.81    0.88    1.00    0.67
+rerank@20                           0.61    0.85    0.88    0.97    0.74
+rewrite                             0.45    0.82    0.91    0.97    0.65
+question+rewrite                    0.52    0.82    0.88    1.00    0.68
 
 hit@5 by question type:
 collection                        condition confusable multi_fact   negation     number     simple      slang      table
 rerank@20                              0.67       0.33       0.67       1.00       1.00       1.00       1.00       1.00
-rewrite                                1.00       1.00       0.67       1.00       1.00       1.00       0.83       1.00
-question+rewrite                       0.67       1.00       0.67       1.00       1.00       1.00       0.83       1.00
+rewrite                                1.00       1.00       0.67       1.00       1.00       1.00       0.85       1.00
+question+rewrite                       0.67       1.00       0.67       1.00       1.00       1.00       0.85       1.00
