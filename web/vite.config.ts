@@ -5,5 +5,6 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   // In development the API runs on port 8000 (uvicorn rights_rag.api:app).
+  // /ask also covers /ask/stream.
   server: { proxy: { '/ask': 'http://localhost:8000', '/health': 'http://localhost:8000' } },
 })
