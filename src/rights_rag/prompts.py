@@ -9,6 +9,8 @@ citations, conditions, conflict handling and a legal disclaimer.
 
 ABSTAIN_V1 = "אין במקורות שבידי מידע על כך."
 DISCLAIMER_V1 = "המידע כללי ואינו מהווה ייעוץ משפטי."
+# v2 returns this instead of an answer whose quotes are not in its sources.
+UNVERIFIED_V2 = "לא הצלחתי לאמת את התשובה עם המידע במקורות."
 
 V0_TEMPLATE = """Answer the question using the context below. Write the answer in Hebrew.
 
@@ -80,6 +82,28 @@ def render_v1(question: str, chunks: list[dict]) -> tuple[str | None, str]:
 def render_v1_1(question: str, chunks: list[dict]) -> tuple[str | None, str]:
     _, user = render_v1(question, chunks)
     return SYSTEM_V1_1, user
+
+
+# v2 answers with v1.1. When the gate finds quotes that are not in their
+# source, the model gets one retry with the failed quotes listed.
+RETRY_V2 = """{user}
+
+<previous_answer>
+{answer}
+</previous_answer>
+
+Your previous answer (above) quoted text that is not word for word in the cited
+source:
+{failed}
+
+Write the answer again. Copy every quote inside «» exactly as it appears in the
+source, with no changes and no "...". If you cannot quote a claim exactly, drop
+the claim."""
+
+
+def render_retry_v2(user: str, answer: str, failed: list[dict]) -> str:
+    lines = "\n".join(f"- «{c['quote']}» [{c['source']}]" for c in failed)
+    return RETRY_V2.format(user=user, answer=answer, failed=lines)
 
 
 PROMPTS = {"v0": render_v0, "v1": render_v1, "v1.1": render_v1_1}

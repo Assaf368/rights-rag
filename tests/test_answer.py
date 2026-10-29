@@ -1,8 +1,8 @@
 """Prompts and answer scoring with a fake model (no API calls)."""
 
-from rights_rag.answer import Answer, answer
-from rights_rag.eval_answer import check_citations, is_abstention, keys_found, score
-from rights_rag.prompts import ABSTAIN_V1, render_v0, render_v1
+from rights_rag.answer import Answer, answer, check_citations, verified
+from rights_rag.eval_answer import is_abstention, keys_found, score
+from rights_rag.prompts import ABSTAIN_V1, UNVERIFIED_V2, render_v0, render_v1
 
 CHUNKS = [
     {
@@ -101,3 +101,39 @@ def test_judge_label_parsing_does_not_read_incorrect_as_correct():
     assert _LABEL.search("INCORRECT").group(1) == "INCORRECT"
     assert _LABEL.search("LABEL: CORRECT.").group(1) == "CORRECT"
     assert _LABEL.search("UNSUPPORTED - A NUMBER FROM MEMORY").group(1) == "UNSUPPORTED"
+
+
+def test_gate_needs_every_quote_or_the_abstention_sentence():
+    assert verified("מגיע לך «באורך מצטבר של 45 דקות» [1].", CHUNKS)
+    assert not verified("«באורך מצטבר של 45 דקות» [1], «35.40 ₪ לשעה» [1]", CHUNKS)
+    assert verified(ABSTAIN_V1, CHUNKS)
+    assert not verified("מגיעות לך 45 דקות הפסקה.", CHUNKS)  # no quote at all
+
+
+def _scripted(*texts):
+    """A fake model that returns the given answers in order."""
+    calls = []
+
+    def fake(system, user):
+        calls.append(user)
+        return Answer(texts[len(calls) - 1], "end_turn", 10, 5, "fake")
+
+    return fake, calls
+
+
+def test_v2_retries_once_with_the_failed_quotes():
+    fake, calls = _scripted("«45 דקות הפסקה» [1]", "«באורך מצטבר של 45 דקות» [1]")
+    result = answer("כמה הפסקה?", CHUNKS, "v2", fake)
+    assert result.text == "«באורך מצטבר של 45 דקות» [1]" and result.attempts == 2
+    assert "«45 דקות הפסקה» [1]" in calls[1] and result.input_tokens == 20
+
+
+def test_v2_blocks_when_the_retry_fails_too():
+    fake, calls = _scripted("«45 דקות הפסקה» [1]", "«עדיין לא מדויק» [1]")
+    assert answer("כמה הפסקה?", CHUNKS, "v2", fake).text == UNVERIFIED_V2
+    assert len(calls) == 2
+
+
+def test_v2_does_not_retry_a_verified_answer():
+    fake, calls = _scripted(ABSTAIN_V1)
+    assert answer("כמה הפסקה?", CHUNKS, "v2", fake).attempts == 1 and len(calls) == 1

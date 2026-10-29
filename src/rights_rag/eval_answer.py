@@ -11,8 +11,9 @@ saved, so scores can be recomputed without calling any model.
     uv run python -m rights_rag.eval_answer --extend eval/runs/answers_<file>.json \
         --versions v1.1 --model claude-haiku-5-5
 
-A version answered by a model other than the default is saved as
-"<version>@<model>", for example "v1.1@claude-haiku-5-5".
+Answers are saved under "<version>@<model>", for example
+"v1.1@claude-haiku-5-5". Runs before the switch to Haiku used the bare version
+for Sonnet answers.
 """
 
 import argparse
@@ -22,6 +23,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
+from rights_rag.answer import _CITATION, check_citations, verified
 from rights_rag.golden import load_golden, normalize
 from rights_rag.prompts import ABSTAIN_V1
 
@@ -58,7 +60,6 @@ _ABSTAIN_PHRASES = (
     "לא ניתן לדעת",
 )
 ABSTAIN_WINDOW = 150  # characters from the start of the answer
-_CITATION = re.compile(r"«([^»]+)»\s*\[(\d+)\]")
 
 
 def is_abstention(text: str) -> bool:
@@ -69,22 +70,6 @@ def is_abstention(text: str) -> bool:
 def keys_found(keys: list[list[str]], text: str) -> bool:
     t = normalize(text)
     return all(any(normalize(k) in t for k in fact) for fact in keys)
-
-
-def check_citations(text: str, chunks: list[dict]) -> list[dict]:
-    """Each «quote» [n] must appear word for word in source n."""
-    out = []
-    for quote, n in _CITATION.findall(text):
-        i = int(n)
-        source = chunks[i - 1]["text"] if 1 <= i <= len(chunks) else ""
-        out.append(
-            {
-                "quote": quote,
-                "source": i,
-                "valid": normalize(quote) in normalize(source),
-            }
-        )
-    return out
 
 
 # ---------------------------------------------------------------- judge
@@ -281,6 +266,7 @@ def score(questions: list[dict], run: dict) -> dict:
             / 1e6
         )
         text = {qid: a["text"] for qid, a in answers.items()}
+        passed = {q: verified(text[q], run["sources"][q]) for q in answers}
         r = {
             "abstained_when_unanswerable": _rate(
                 [is_abstention(text[q]) for q in unanswerable]
@@ -312,8 +298,21 @@ def score(questions: list[dict], run: dict) -> dict:
             if cites
             else None,
             "citations_total": len(cites),
+            # v2 gate, applied to the saved answers (no model call): a blocked
+            # answer counts as a miss when answerable, as a non-answer otherwise.
+            "gate_blocked_answerable": _rate([not passed[q] for q in answerable]),
+            "gate_key_facts": _rate(
+                [
+                    passed[q] and keys_found(by_id[q]["answer_keys"], text[q])
+                    for q in keyed
+                ]
+            ),
+            "gate_safe_unanswerable": _rate(
+                [is_abstention(text[q]) or not passed[q] for q in unanswerable]
+            ),
             "avg_chars_answerable": _mean([len(text[q]) for q in answerable]),
             "avg_chars_unanswerable": _mean([len(text[q]) for q in unanswerable]),
+            "retried": _rate([a.get("attempts", 1) > 1 for a in answers.values()]),
             "refusals": sum(a["stop_reason"] == "refusal" for a in answers.values()),
             "cost_usd": round(cost, 3),
             "n": {
@@ -367,6 +366,9 @@ def print_report(report: dict) -> None:
         ("answerable: answers with «quote» [n]", "answers_with_citations"),
         ("unanswerable: answers with «quote» [n]", "abstentions_with_citations"),
         ("citations found in their source", "citations_valid"),
+        ("v2 gate: blocked, answerable (lower is better)", "gate_blocked_answerable"),
+        ("v2 gate: key facts after the gate", "gate_key_facts"),
+        ("v2 gate: abstained or blocked, unanswerable", "gate_safe_unanswerable"),
     ]
     versions = list(report)
     w = max(10, *(len(v) + 2 for v in versions))
@@ -392,6 +394,10 @@ def print_report(report: dict) -> None:
                 for v in versions
             )
         )
+    print(
+        f"{'retried after a failed gate (v2)':44}"
+        + "".join(f"{report[v]['retried']:>{w}.2f}" for v in versions)
+    )
     print(
         f"{'refusals':44}" + "".join(f"{report[v]['refusals']:>{w}}" for v in versions)
     )
@@ -474,7 +480,7 @@ def main() -> None:
         call = claude_caller(model=model)
 
         def label(v: str) -> str:
-            return v if model == ANSWER_MODEL else f"{v}@{model}"
+            return f"{v}@{model}"
 
         if args.extend:
             path = args.extend

@@ -1,13 +1,16 @@
 """The answer stage: retrieved chunks + a prompt version -> Claude's answer."""
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import anthropic
 
-from rights_rag.prompts import PROMPTS
+from rights_rag.golden import normalize
+from rights_rag.prompts import ABSTAIN_V1, PROMPTS, UNVERIFIED_V2, render_retry_v2
 
-ANSWER_MODEL = "claude-sonnet-5-5"
+# Haiku answered dev at 1/12 of Sonnet's cost; see the README for the trade-off.
+ANSWER_MODEL = "claude-haiku-5-5"
 ANSWER_EFFORT = "medium"
 # Haiku 5.5 has no server-side fallback; sending one is a 400.
 FALLBACK_MODELS = {"claude-sonnet-5-5"}
@@ -21,6 +24,7 @@ class Answer:
     input_tokens: int
     output_tokens: int
     model: str
+    attempts: int = 1
 
 
 def claude_caller(
@@ -65,11 +69,65 @@ def claude_caller(
     return call
 
 
+_CITATION = re.compile(r"«([^»]+)»\s*\[(\d+)\]")
+
+
+def check_citations(text: str, chunks: list[dict]) -> list[dict]:
+    """Each «quote» [n] must appear word for word in source n."""
+    out = []
+    for quote, n in _CITATION.findall(text):
+        i = int(n)
+        source = chunks[i - 1]["text"] if 1 <= i <= len(chunks) else ""
+        out.append(
+            {
+                "quote": quote,
+                "source": i,
+                "valid": normalize(quote) in normalize(source),
+            }
+        )
+    return out
+
+
+def verified(text: str, chunks: list[dict]) -> bool:
+    """The v2 gate: every quote is in its source, and an answer with no quote
+    is the abstention sentence."""
+    cites = check_citations(text, chunks)
+    if not cites:
+        return normalize(ABSTAIN_V1) in normalize(text)
+    return all(c["valid"] for c in cites)
+
+
 def answer(
     question: str,
     chunks: list[dict],
     version: str,
     call: Callable[[str | None, str], Answer],
 ) -> Answer:
+    if version == "v2":
+        return answer_v2(question, chunks, call)
     system, user = PROMPTS[version](question, chunks)
     return call(system, user)
+
+
+def answer_v2(
+    question: str,
+    chunks: list[dict],
+    call: Callable[[str | None, str], Answer],
+) -> Answer:
+    """v1.1 behind the gate, with one retry; an answer that still fails is
+    replaced by UNVERIFIED_V2."""
+    system, user = PROMPTS["v1.1"](question, chunks)
+    first = call(system, user)
+    if verified(first.text, chunks):
+        return first
+    failed = [c for c in check_citations(first.text, chunks) if not c["valid"]]
+    second = call(system, render_retry_v2(user, first.text, failed))
+    text = second.text if verified(second.text, chunks) else UNVERIFIED_V2
+    return Answer(
+        text=text,
+        stop_reason=second.stop_reason,
+        input_tokens=first.input_tokens + second.input_tokens,
+        output_tokens=first.output_tokens + second.output_tokens,
+        model=second.model,
+        attempts=2,
+    )
