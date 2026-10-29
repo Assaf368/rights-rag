@@ -97,14 +97,25 @@ def verified(text: str, chunks: list[dict]) -> bool:
     return all(c["valid"] for c in cites)
 
 
+def enforce_abstention(text: str) -> str:
+    """An answer that contains the abstention sentence is only that sentence."""
+    return ABSTAIN_V1 if normalize(ABSTAIN_V1) in normalize(text) else text
+
+
+# Gated versions and the prompt each one answers with. v2.1 also enforces the
+# abstention sentence.
+GATED = {"v2": "v1.1", "v2.1": "v1.2"}
+ENFORCED = {"v2.1"}
+
+
 def answer(
     question: str,
     chunks: list[dict],
     version: str,
     call: Callable[[str | None, str], Answer],
 ) -> Answer:
-    if version == "v2":
-        return answer_v2(question, chunks, call)
+    if version in GATED:
+        return answer_v2(question, chunks, call, version)
     system, user = PROMPTS[version](question, chunks)
     return call(system, user)
 
@@ -113,15 +124,20 @@ def answer_v2(
     question: str,
     chunks: list[dict],
     call: Callable[[str | None, str], Answer],
+    version: str = "v2",
 ) -> Answer:
-    """v1.1 behind the gate, with one retry; an answer that still fails is
-    replaced by UNVERIFIED_V2."""
-    system, user = PROMPTS["v1.1"](question, chunks)
+    """The version's prompt behind the gate, with one retry; an answer that
+    still fails is replaced by UNVERIFIED_V2."""
+    system, user = PROMPTS[GATED[version]](question, chunks)
     first = call(system, user)
+    if version in ENFORCED:
+        first.text = enforce_abstention(first.text)
     if verified(first.text, chunks):
         return first
     failed = [c for c in check_citations(first.text, chunks) if not c["valid"]]
     second = call(system, render_retry_v2(user, first.text, failed))
+    if version in ENFORCED:
+        second.text = enforce_abstention(second.text)
     text = second.text if verified(second.text, chunks) else UNVERIFIED_V2
     return Answer(
         text=text,

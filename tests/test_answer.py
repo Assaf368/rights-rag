@@ -137,3 +137,12 @@ def test_v2_blocks_when_the_retry_fails_too():
 def test_v2_does_not_retry_a_verified_answer():
     fake, calls = _scripted(ABSTAIN_V1)
     assert answer("כמה הפסקה?", CHUNKS, "v2", fake).attempts == 1 and len(calls) == 1
+
+
+def test_v2_1_keeps_only_the_abstention_sentence():
+    fake, _ = _scripted(f"{ABSTAIN_V1} אבל אולי תבדוק עם המעסיק.")
+    assert answer("כמה הפסקה?", CHUNKS, "v2.1", fake).text == ABSTAIN_V1
+    fake, _ = _scripted(f"{ABSTAIN_V1} אבל אולי תבדוק עם המעסיק.")
+    assert (
+        answer("כמה הפסקה?", CHUNKS, "v2", fake).text != ABSTAIN_V1
+    )  # v2 does not enforce

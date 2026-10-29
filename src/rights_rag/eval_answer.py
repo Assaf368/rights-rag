@@ -271,6 +271,9 @@ def score(questions: list[dict], run: dict) -> dict:
             "abstained_when_unanswerable": _rate(
                 [is_abstention(text[q]) for q in unanswerable]
             ),
+            "exact_abstention_unanswerable": _rate(
+                [normalize(ABSTAIN_V1) in normalize(text[q]) for q in unanswerable]
+            ),
             "abstained_when_answerable": _rate(
                 [is_abstention(text[q]) for q in answerable]
             ),
@@ -360,6 +363,7 @@ def _mean(values: list[int]) -> int | None:
 def print_report(report: dict) -> None:
     rows = [
         ("abstained, unanswerable (higher is better)", "abstained_when_unanswerable"),
+        ("  ...with the exact abstention sentence", "exact_abstention_unanswerable"),
         ("abstained, answerable (lower is better)", "abstained_when_answerable"),
         ("key facts in answer", "key_facts_correct"),
         ("  ...stated though missing from sources", "key_facts_not_in_sources"),

@@ -59,6 +59,23 @@ SYSTEM_V1_1 = SYSTEM_V1.replace(
 )
 assert SYSTEM_V1_1 != SYSTEM_V1
 
+# v1.2 changes rule 2 again: the exact sentence is kept for "nothing relevant",
+# a partial answer names the gap in other words (so code can enforce the exact
+# sentence), and a related rule is not applied to the user's case on a guess.
+SYSTEM_V1_2 = SYSTEM_V1.replace(
+    f"""2. If the sources do not contain the answer, say so in one sentence:
+   "{ABSTAIN_V1}" Do not guess. If they answer only part of
+   the question, answer that part and say what is missing.""",
+    f"""2. If the sources say nothing relevant to the question, reply with exactly
+   this sentence and nothing else: "{ABSTAIN_V1}" Do not guess.
+   If they cover only part of what the user asked, answer that part and say in
+   one short sentence, in your own words and not with the sentence above,
+   which part is not covered. Do not list details the user did not ask about.
+   Do not apply a rule to the user's case unless the source says it covers
+   that case.""",
+)
+assert SYSTEM_V1_2 != SYSTEM_V1
+
 
 def render_v0(question: str, chunks: list[dict]) -> tuple[str | None, str]:
     """(system, user). v0 has no system prompt."""
@@ -106,4 +123,9 @@ def render_retry_v2(user: str, answer: str, failed: list[dict]) -> str:
     return RETRY_V2.format(user=user, answer=answer, failed=lines)
 
 
-PROMPTS = {"v0": render_v0, "v1": render_v1, "v1.1": render_v1_1}
+def render_v1_2(question: str, chunks: list[dict]) -> tuple[str | None, str]:
+    _, user = render_v1(question, chunks)
+    return SYSTEM_V1_2, user
+
+
+PROMPTS = {"v0": render_v0, "v1": render_v1, "v1.1": render_v1_1, "v1.2": render_v1_2}
