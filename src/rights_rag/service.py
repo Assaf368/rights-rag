@@ -3,8 +3,8 @@
 import time
 
 from rights_rag.answer import check_citations
+from rights_rag.costs import cost
 from rights_rag.critic import flag
-from rights_rag.eval_answer import _cost
 from rights_rag.events import emit, listening, public_sources
 from rights_rag.golden import normalize
 from rights_rag.graph import build_graph, run
@@ -34,7 +34,7 @@ def to_response(state: dict, seconds: float) -> dict:
             "searched_again": len(state.get("queries") or []) > 1,
             "queries": state.get("queries") or [],
         },
-        "cost_usd": round(sum(_cost(c) for c in state.get("calls") or []), 5),
+        "cost_usd": round(sum(cost(c) for c in state.get("calls") or []), 5),
         "seconds": round(seconds, 2),
     }
 

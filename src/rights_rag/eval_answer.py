@@ -24,6 +24,7 @@ from datetime import datetime
 from pathlib import Path
 
 from rights_rag.answer import _CITATION, check_citations, verified
+from rights_rag.costs import cost
 from rights_rag.golden import load_golden, normalize
 from rights_rag.prompts import ABSTAIN_V1
 
@@ -32,8 +33,6 @@ COLLECTION = "structure_headings__e5-large"
 RERANK_DEPTH = 20
 TOP_K = 5
 JUDGE_MODEL = "claude-haiku-5-5"
-# Sonnet 5.5 and Haiku 5.5 prices, $ per million tokens (input, output).
-PRICES = {"claude-sonnet-5-5": (2.0, 10.0), "claude-haiku-5-5": (0.10, 0.50)}
 
 # v1 has an exact sentence; v0 does not, so common Hebrew ways of saying
 # "the sources don't cover this" also count. Only the opening counts: answers
@@ -277,7 +276,7 @@ def score(questions: list[dict], run: dict) -> dict:
             for qid in answers
             for c in check_citations(answers[qid]["text"], _sources(run, answers, qid))
         ]
-        cost = sum(_cost(c) for a in answers.values() for c in a.get("calls") or [a])
+        total = sum(cost(c) for a in answers.values() for c in a.get("calls") or [a])
         text = {qid: a["text"] for qid, a in answers.items()}
         passed = {q: verified(text[q], _sources(run, answers, q)) for q in answers}
         r = {
@@ -334,7 +333,7 @@ def score(questions: list[dict], run: dict) -> dict:
             ),
             "retried": _rate([a.get("attempts", 1) > 1 for a in answers.values()]),
             "refusals": sum(a["stop_reason"] == "refusal" for a in answers.values()),
-            "cost_usd": round(cost, 3),
+            "cost_usd": round(total, 3),
             "n": {
                 "answerable": len(answerable),
                 "unanswerable": len(unanswerable),
@@ -363,11 +362,6 @@ def _sources(run: dict, answers: dict, qid: str) -> list[dict]:
     """The sources an answer was written from: its own after a second
     retrieval (v3), the run's shared ones otherwise."""
     return answers[qid].get("sources") or run["sources"][qid]
-
-
-def _cost(usage: dict) -> float:
-    price_in, price_out = PRICES.get(usage["model"], (0, 0))
-    return (usage["input_tokens"] * price_in + usage["output_tokens"] * price_out) / 1e6
 
 
 def _label_rates(labels: dict, answerable: list, unanswerable: list) -> dict:
