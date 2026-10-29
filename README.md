@@ -117,8 +117,8 @@ out of the repository.
 ## Results
 
 Numbers are on dev unless marked otherwise. After the first prompt, each step
-changes one thing. Running every experiment below cost about $8 in API calls;
-embeddings and reranking run locally.
+changes one thing. Running every experiment below cost under $10 in API
+calls; embeddings and reranking run locally.
 
 The versions that appear in the tables:
 
@@ -182,8 +182,7 @@ rather than instructions, `«quote» [n]` citations, stated conditions, the
 newer source preferred when sources conflict, and an exact sentence for "the
 sources do not cover this". v0 knew the facts equally well but added claims
 the sources did not support. The 34 hard unanswerable questions are those of
-dev and test together; this comparison was run before the test split was
-reserved for single runs.
+dev and test together, so this row is not a held-out result; section 5 is.
 
 v1.1 fixed a side effect: when it could not answer, v1 explained at length
 what the sources *did* say (410 characters on average). v1.1 answers with the
