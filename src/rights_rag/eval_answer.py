@@ -432,7 +432,9 @@ def main() -> None:
 
     load_dotenv()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--split", choices=["dev", "test", "all"], default="dev")
+    parser.add_argument(
+        "--split", choices=["dev", "test", "assaf", "all"], default="dev"
+    )
     parser.add_argument("--versions", nargs="+", default=["v0", "v1"])
     parser.add_argument(
         "--judge", action="store_true", help="also grade with the Haiku judge"
@@ -464,6 +466,10 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    saved_path = args.rescore or args.extend
+    if saved_path:
+        run = json.loads(saved_path.read_text(encoding="utf-8"))
+        args.split = run["split"]  # score the questions the run was made for
     questions = [
         q for q in load_golden() if args.split == "all" or q["split"] == args.split
     ]
@@ -472,7 +478,6 @@ def main() -> None:
     by_id = {q["id"]: q for q in questions}
     if args.rescore:
         path = args.rescore
-        run = json.loads(path.read_text(encoding="utf-8"))
     else:
         from rights_rag.answer import ANSWER_MODEL, claude_caller
 
@@ -484,7 +489,6 @@ def main() -> None:
 
         if args.extend:
             path = args.extend
-            run = json.loads(path.read_text(encoding="utf-8"))
             # Answer only the questions the saved run has sources for.
             questions = [q for q in questions if q["id"] in run["sources"]]
             run["answers"] |= generate(

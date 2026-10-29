@@ -201,7 +201,9 @@ def print_report(report: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--split", choices=["dev", "test", "all"], default="dev")
+    parser.add_argument(
+        "--split", choices=["dev", "test", "assaf", "all"], default="dev"
+    )
     parser.add_argument(
         "--rescore", type=Path, help="score a saved run without retrieving"
     )
@@ -210,11 +212,14 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    saved = None
+    if args.rescore:
+        saved = json.loads(args.rescore.read_text(encoding="utf-8"))
+        args.split = saved["split"]  # score the questions the run was made for
     questions = [
         q for q in load_golden() if args.split == "all" or q["split"] == args.split
     ]
-    if args.rescore:
-        saved = json.loads(args.rescore.read_text(encoding="utf-8"))
+    if saved:
         run = saved["run"]
     else:
         if args.experiment == "hybrid":
