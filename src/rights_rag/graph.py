@@ -45,12 +45,13 @@ def _usage(a: Answer) -> dict:
 def build_graph(
     search: Callable[[list[str]], list[dict]],
     answer: Callable[[str, list[dict]], Answer],
-    critique: Callable[[str, list[dict], str, str], tuple[dict, Answer | None]],
+    critique: Callable[[str, list[dict], str, str], tuple[dict, Answer | None]] | None,
     rewrite: Callable[[str], tuple[list[str], Answer | None]],
 ):
     """search: queries -> top chunks; answer: (question, chunks) -> Answer;
     critique: (question, chunks, answer text, flag) -> (verdict, usage);
-    rewrite: question -> (queries, usage). Injected so tests need no models."""
+    rewrite: question -> (queries, usage). Injected so tests need no models.
+    With critique=None the graph is v2.1: answer once, never review."""
     from rights_rag.critic import flag
 
     def retrieve(state: State) -> State:
@@ -64,13 +65,18 @@ def build_graph(
 
     def review(state: State) -> State:
         reason = flag(state["answer"])
-        if reason is None or state.get("rounds", 0) >= MAX_ROUNDS:
+        if critique is None or reason is None or state.get("rounds", 0) >= MAX_ROUNDS:
             return {"flag": reason}
         verdict, usage = critique(
             state["question"], state["sources"], state["answer"]["text"], reason
         )
         calls = state.get("calls", []) + ([_usage(usage)] if usage else [])
-        return {"flag": reason, "critic": verdict, "decision": verdict, "calls": calls}
+        return {
+            "flag": reason,
+            "critic": verdict,
+            "decision": verdict | {"flag": reason},
+            "calls": calls,
+        }
 
     def after_review(state: State) -> str:
         if state.get("rounds", 0) >= MAX_ROUNDS or not state.get("critic"):
@@ -127,8 +133,9 @@ def _recording(call):
     return wrapped, seen
 
 
-def default_graph(answer_model: str | None = None):
-    """The graph with the real retriever, Haiku answers and the Sonnet critic."""
+def default_components(answer_model: str | None = None) -> dict:
+    """build_graph's arguments with the real retriever, Haiku answers, the
+    Sonnet critic and Haiku rewrites. Loads the embedding and reranking models."""
     from rights_rag import critic as critic_mod
     from rights_rag.answer import ANSWER_MODEL, claude_caller
     from rights_rag.answer import answer as answer_fn
@@ -166,9 +173,13 @@ def default_graph(answer_model: str | None = None):
         call, seen = _recording(rewrite_call)
         return rewrite_fn(question, call), (seen[0] if seen else None)
 
-    return build_graph(
-        search,
-        lambda q, chunks: answer_fn(q, chunks, ANSWER_VERSION, answer_call),
-        critique,
-        rewrite,
-    )
+    return {
+        "search": search,
+        "answer": lambda q, chunks: answer_fn(q, chunks, ANSWER_VERSION, answer_call),
+        "critique": critique,
+        "rewrite": rewrite,
+    }
+
+
+def default_graph(answer_model: str | None = None):
+    return build_graph(**default_components(answer_model))
