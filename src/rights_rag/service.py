@@ -5,6 +5,7 @@ import time
 from rights_rag.answer import check_citations
 from rights_rag.critic import flag
 from rights_rag.eval_answer import _cost
+from rights_rag.events import emit, listening, public_sources
 from rights_rag.golden import normalize
 from rights_rag.graph import build_graph, run
 from rights_rag.prompts import ABSTAIN_V1, DISCLAIMER_V1, UNVERIFIED_V2
@@ -25,17 +26,7 @@ def to_response(state: dict, seconds: float) -> dict:
             else "answered"
         ),
         "disclaimer": DISCLAIMER_V1,
-        "sources": [
-            {
-                "n": n,
-                "title": c["title"],
-                "section": c["section_path"],
-                "url": c["url"],
-                "updated": c.get("updated") or None,
-                "text": c["text"],
-            }
-            for n, c in enumerate(sources, start=1)
-        ],
+        "sources": public_sources(sources),
         "citations": check_citations(text, sources),
         "review": {
             "flag": flag(state["answer"]),  # of the final answer
@@ -61,6 +52,15 @@ class Answerer:
         start = time.perf_counter()
         state = run(self.graphs[critic], question)
         return to_response(state, time.perf_counter() - start)
+
+    def ask_streaming(self, question: str, critic: bool, on_event) -> None:
+        """ask(), reporting progress to on_event as it happens. The last
+        event is "done" with the full response, or "error"."""
+        with listening(on_event):
+            try:
+                emit("done", response=self.ask(question, critic))
+            except Exception as e:  # noqa: BLE001 - the stream must end with an event
+                emit("error", message=f"{type(e).__name__}: {e}")
 
 
 def default_answerer() -> Answerer:

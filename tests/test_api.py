@@ -1,5 +1,7 @@
 """The service and the REST API with fake models."""
 
+import json
+
 from fastapi.testclient import TestClient
 
 from rights_rag.answer import Answer
@@ -58,3 +60,38 @@ def test_api_ask_and_validation():
         r = client.post("/ask", json={"question": "כמה הפסקה?"})
         assert r.status_code == 200 and r.json()["status"] == "answered"
         assert client.post("/ask", json={"question": ""}).status_code == 422
+
+
+def stream_events(make_answerer) -> list[dict]:
+    with (
+        TestClient(create_app(make_answerer)) as client,
+        client.stream("POST", "/ask/stream", json={"question": "כמה הפסקה?"}) as r,
+    ):
+        return [
+            json.loads(line[6:]) for line in r.iter_lines() if line.startswith("data: ")
+        ]
+
+
+def test_stream_sends_progress_then_the_full_response():
+    events = stream_events(lambda: fake_answerer(ABSTAIN_V1))
+    types = [e["type"] for e in events]
+    assert types[0] == "stage" and types[-1] == "done"
+    assert "sources" in types and "critic" in types
+    stages = [e["stage"] for e in events if e["type"] == "stage"]
+    assert stages == [
+        "searching",
+        "answering",
+        "reviewing",
+        "searching_again",
+        "answering",
+    ]
+    assert events[-1]["response"]["status"] == "answered"
+
+
+def test_stream_ends_with_an_error_event():
+    def broken():
+        a = fake_answerer()
+        a.graphs = {True: None, False: None}  # run() will fail
+        return a
+
+    assert stream_events(broken)[-1]["type"] == "error"

@@ -16,6 +16,7 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from rights_rag.answer import Answer
+from rights_rag.events import active, emit, public_sources
 from rights_rag.prompts import ABSTAIN_V1
 
 ANSWER_VERSION = "v2.1"
@@ -57,9 +58,19 @@ def build_graph(
     def retrieve(state: State) -> State:
         if state.get("sources") is not None and not state.get("rounds"):
             return {}  # first round with sources already retrieved (evaluation)
-        return {"sources": search(state["queries"])}
+        again = bool(state.get("rounds"))
+        emit(
+            "stage",
+            stage="searching_again" if again else "searching",
+            queries=state["queries"],
+        )
+        sources = search(state["queries"])
+        if active():
+            emit("sources", sources=public_sources(sources))
+        return {"sources": sources}
 
     def respond(state: State) -> State:
+        emit("stage", stage="answering")  # a client clears any earlier draft here
         a = answer(state["question"], state["sources"])
         return {"answer": asdict(a), "calls": [*state.get("calls", []), _usage(a)]}
 
@@ -67,9 +78,11 @@ def build_graph(
         reason = flag(state["answer"])
         if critique is None or reason is None or state.get("rounds", 0) >= MAX_ROUNDS:
             return {"flag": reason}
+        emit("stage", stage="reviewing", flag=reason)
         verdict, usage = critique(
             state["question"], state["sources"], state["answer"]["text"], reason
         )
+        emit("critic", decision=verdict | {"flag": reason})
         calls = state.get("calls", []) + ([_usage(usage)] if usage else [])
         return {
             "flag": reason,
@@ -96,6 +109,7 @@ def build_graph(
         }
 
     def abstain(state: State) -> State:
+        emit("replace", text=ABSTAIN_V1)
         return {"answer": {**state["answer"], "text": ABSTAIN_V1}}
 
     g = StateGraph(State)
@@ -147,7 +161,7 @@ def default_components(answer_model: str | None = None) -> dict:
 
     retriever = Retriever(open_collection(COLLECTION), E5Embedder().query)
     reranker = Reranker()
-    answer_call = claude_caller(model=answer_model or ANSWER_MODEL)
+    answer_call = claude_caller(model=answer_model or ANSWER_MODEL, stream_tokens=True)
     critic_call = claude_caller(model=critic_mod.CRITIC_MODEL)
     rewrite_call = claude_caller(model=REWRITE_MODEL)
 

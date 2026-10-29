@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import anthropic
 
+from rights_rag.events import emit
 from rights_rag.golden import normalize
 from rights_rag.prompts import ABSTAIN_V1, PROMPTS, UNVERIFIED_V2, render_retry_v2
 
@@ -30,12 +31,14 @@ class Answer:
 def claude_caller(
     client: anthropic.Anthropic | None = None,
     model: str = ANSWER_MODEL,
+    stream_tokens: bool = False,
 ) -> Callable[[str | None, str], Answer]:
     """Return a function (system, user) -> Answer that calls Claude.
 
     Server-side fallback is on where the model supports it: if the model
     declines on safety grounds, the API retries on the recommended fallback
-    model in the same call.
+    model in the same call. With stream_tokens, text is emitted as "token"
+    events while it is generated.
     """
     client = client or anthropic.Anthropic()
 
@@ -46,13 +49,19 @@ def claude_caller(
                 "betas": ["server-side-fallback-2026-07-01"],
                 "fallbacks": "default",
             }
-        response = client.beta.messages.create(
-            model=model,
-            max_tokens=MAX_TOKENS,
-            output_config={"effort": ANSWER_EFFORT},
-            messages=[{"role": "user", "content": user}],
-            **kwargs,
-        )
+        kwargs |= {
+            "model": model,
+            "max_tokens": MAX_TOKENS,
+            "output_config": {"effort": ANSWER_EFFORT},
+            "messages": [{"role": "user", "content": user}],
+        }
+        if stream_tokens:
+            with client.beta.messages.stream(**kwargs) as stream:
+                for text in stream.text_stream:
+                    emit("token", text=text)
+                response = stream.get_final_message()
+        else:
+            response = client.beta.messages.create(**kwargs)
         text = (
             ""
             if response.stop_reason == "refusal"
@@ -135,10 +144,13 @@ def answer_v2(
     if verified(first.text, chunks):
         return first
     failed = [c for c in check_citations(first.text, chunks) if not c["valid"]]
+    emit("retry", failed=[c["quote"] for c in failed])
     second = call(system, render_retry_v2(user, first.text, failed))
     if version in ENFORCED:
         second.text = enforce_abstention(second.text)
     text = second.text if verified(second.text, chunks) else UNVERIFIED_V2
+    if text == UNVERIFIED_V2:
+        emit("blocked")
     return Answer(
         text=text,
         stop_reason=second.stop_reason,
