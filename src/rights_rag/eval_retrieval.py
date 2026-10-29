@@ -59,9 +59,10 @@ def first_full_rank(question: dict, hits: list[dict]) -> int | None:
 def score(questions: list[dict], run: dict[str, dict[str, list[dict]]]) -> dict:
     """run[collection][question_id] -> ranked hits. Unanswerable questions have no
     evidence to find, so they are left out of retrieval metrics."""
-    answerable = [q for q in questions if q["evidence"]]
     report = {}
     for collection, per_q in run.items():
+        # A saved run may predate questions added or relabeled since.
+        answerable = [q for q in questions if q["evidence"] and q["id"] in per_q]
         ranks = {q["id"]: first_full_rank(q, per_q[q["id"]]) for q in answerable}
         by_type = defaultdict(list)
         for q in answerable:
