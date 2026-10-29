@@ -91,6 +91,8 @@ def test_score_end_to_end():
     assert r["abstained_when_unanswerable"] == 1.0
     assert r["abstained_when_answerable"] == 0.0
     assert r["citations_valid"] == 1.0
+    assert r["answers_with_citations"] == 1.0
+    assert r["abstentions_with_citations"] == 0.0
 
 
 def test_judge_label_parsing_does_not_read_incorrect_as_correct():

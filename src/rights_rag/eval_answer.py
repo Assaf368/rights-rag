@@ -294,14 +294,19 @@ def score(questions: list[dict], run: dict) -> dict:
                     for q in keyed
                 ]
             ),
+            # Split by kind: a bare abstention should carry no quote.
             "answers_with_citations": _rate(
-                [bool(_CITATION.search(t)) for t in text.values()]
+                [bool(_CITATION.search(text[q])) for q in answerable]
+            ),
+            "abstentions_with_citations": _rate(
+                [bool(_CITATION.search(text[q])) for q in unanswerable]
             ),
             "citations_valid": (sum(c["valid"] for c in cites) / len(cites))
             if cites
             else None,
             "citations_total": len(cites),
-            "avg_answer_chars": round(sum(len(t) for t in text.values()) / len(text)),
+            "avg_chars_answerable": _mean([len(text[q]) for q in answerable]),
+            "avg_chars_unanswerable": _mean([len(text[q]) for q in unanswerable]),
             "refusals": sum(a["stop_reason"] == "refusal" for a in answers.values()),
             "cost_usd": round(cost, 3),
             "n": {
@@ -342,13 +347,18 @@ def _rate(flags: list[bool]) -> float | None:
     return sum(flags) / len(flags) if flags else None
 
 
+def _mean(values: list[int]) -> int | None:
+    return round(sum(values) / len(values)) if values else None
+
+
 def print_report(report: dict) -> None:
     rows = [
         ("abstained, unanswerable (higher is better)", "abstained_when_unanswerable"),
         ("abstained, answerable (lower is better)", "abstained_when_answerable"),
         ("key facts in answer", "key_facts_correct"),
         ("  ...stated though missing from sources", "key_facts_not_in_sources"),
-        ("answers with «quote» [n]", "answers_with_citations"),
+        ("answerable: answers with «quote» [n]", "answers_with_citations"),
+        ("unanswerable: answers with «quote» [n]", "abstentions_with_citations"),
         ("citations found in their source", "citations_valid"),
     ]
     versions = list(report)
@@ -363,10 +373,17 @@ def print_report(report: dict) -> None:
         f"{'citations checked':44}"
         + "".join(f"{report[v]['citations_total']:>10}" for v in versions)
     )
-    print(
-        f"{'average answer length (chars)':44}"
-        + "".join(f"{report[v]['avg_answer_chars']:>10}" for v in versions)
-    )
+    for label, key in (
+        ("answer length, answerable (chars)", "avg_chars_answerable"),
+        ("answer length, unanswerable (chars)", "avg_chars_unanswerable"),
+    ):
+        print(
+            f"{label:44}"
+            + "".join(
+                f"{'-' if report[v][key] is None else report[v][key]:>10}"
+                for v in versions
+            )
+        )
     print(
         f"{'refusals':44}" + "".join(f"{report[v]['refusals']:>10}" for v in versions)
     )
