@@ -27,8 +27,8 @@ def as_docx(tmp_path):
 
 @pytest.mark.parametrize("name", NAMES)
 def test_sentence_recall_against_html(name, as_docx):
+    text = docs_text(load_docx(as_docx(name)))  # skips first if fixtures are missing
     sentences = html_sentences(FIXTURES / f"{name}.html")
-    text = docs_text(load_docx(as_docx(name)))
     missing = [s for s in sentences if s not in text]
     recall = 1 - len(missing) / len(sentences)
     assert recall >= MIN_RECALL, f"recall {recall:.1%}, missing e.g.: {missing[:5]}"
