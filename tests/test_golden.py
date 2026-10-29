@@ -37,7 +37,7 @@ def test_golden_file_shape():
     qs = load_golden()
     assert len({q["id"] for q in qs}) == len(qs)
     for q in qs:
-        assert q["split"] in {"dev", "test", "assaf"}
+        assert q["split"] in {"dev", "test", "assaf", "hard"}
         assert (q["type"] == "unanswerable") == (q["evidence"] == [])
 
 

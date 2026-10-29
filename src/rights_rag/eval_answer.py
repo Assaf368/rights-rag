@@ -476,7 +476,7 @@ def main() -> None:
     load_dotenv()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "--split", choices=["dev", "test", "assaf", "all"], default="dev"
+        "--split", choices=["dev", "test", "assaf", "hard", "all"], default="dev"
     )
     parser.add_argument("--versions", nargs="+", default=["v0", "v1"])
     parser.add_argument(

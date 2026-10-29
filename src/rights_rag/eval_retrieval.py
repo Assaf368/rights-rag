@@ -245,7 +245,7 @@ def print_report(report: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "--split", choices=["dev", "test", "assaf", "all"], default="dev"
+        "--split", choices=["dev", "test", "assaf", "hard", "all"], default="dev"
     )
     parser.add_argument(
         "--rescore", type=Path, help="score a saved run without retrieving"
