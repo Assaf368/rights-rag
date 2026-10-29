@@ -35,11 +35,6 @@ export const Plus = (p: P) => (
     <path d="M12 5v14M5 12h14" />
   </Icon>
 )
-export const Menu = (p: P) => (
-  <Icon {...p}>
-    <path d="M4 7h16M4 12h16M4 17h16" />
-  </Icon>
-)
 export const Copy = (p: P) => (
   <Icon {...p}>
     <rect x="9" y="9" width="11" height="11" rx="2" />
@@ -82,11 +77,6 @@ export const External = (p: P) => (
   <Icon {...p}>
     <path d="M14 4h6v6M20 4l-9 9" />
     <path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
-  </Icon>
-)
-export const Trash = (p: P) => (
-  <Icon {...p}>
-    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
   </Icon>
 )
 export const Scale = (p: P) => (

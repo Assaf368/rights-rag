@@ -1,6 +1,5 @@
 :root {
   --bg: #ffffff;
-  --sidebar: #f7f6f3;
   --surface: #f4f3f0;
   --surface-2: #ebe9e4;
   --border: #e6e4de;
@@ -26,7 +25,6 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #1b1b1a;
-    --sidebar: #141413;
     --surface: #262624;
     --surface-2: #30302d;
     --border: #34332f;

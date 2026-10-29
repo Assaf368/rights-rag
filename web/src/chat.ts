@@ -1,5 +1,4 @@
-// Chat state: a conversation is a list of turns; a turn is one question and
-// the answer as it streams in. Saved in localStorage, so it stays per browser.
+// Chat state: a turn is one question and the answer as it streams in.
 
 import type { AskResponse, Decision, Source, StreamEvent } from './api'
 
@@ -22,8 +21,6 @@ export type Turn = {
   startedAt: number
 }
 
-export type Conversation = { id: string; title: string; turns: Turn[]; updatedAt: number }
-
 const ACTION_LABEL: Record<string, string> = {
   accept: 'השאיר את התשובה',
   retry_with_rewrite: 'ביקש לנסח מחדש ולחפש שוב',
@@ -36,7 +33,7 @@ const FLAG_LABEL: Record<string, string> = {
   blocked: 'הציטוטים לא אומתו',
 }
 
-export const newId = () => Math.random().toString(36).slice(2, 10)
+const newId = () => Math.random().toString(36).slice(2, 10)
 
 export function newTurn(question: string): Turn {
   return {
@@ -51,10 +48,6 @@ export function newTurn(question: string): Turn {
 }
 
 // One event in, the next turn state out.
-export function newConversation(turn: Turn): Conversation {
-  return { id: newId(), title: turn.question.slice(0, 60), turns: [turn], updatedAt: Date.now() }
-}
-
 export function applyEvent(t: Turn, e: StreamEvent): Turn {
   const step = (s: Step) => [...t.steps, s]
   switch (e.type) {
@@ -114,28 +107,5 @@ export function applyEvent(t: Turn, e: StreamEvent): Turn {
     }
     case 'error':
       return { ...t, status: 'error', error: e.message }
-  }
-}
-
-const KEY = 'rights-rag:conversations'
-
-export function load(): Conversation[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? '[]') as Conversation[]
-    // A turn that was streaming when the page closed did not finish.
-    return raw.map((c) => ({
-      ...c,
-      turns: c.turns.map((t) => (t.status === 'streaming' ? { ...t, status: 'stopped' as const } : t)),
-    }))
-  } catch {
-    return []
-  }
-}
-
-export function save(conversations: Conversation[]) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(conversations.slice(0, 50)))
-  } catch {
-    // storage full or blocked: the chat still works, it just is not saved
   }
 }

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { askStream } from './api'
-import { applyEvent, load, newConversation, newTurn, save, type Conversation, type Turn } from './chat'
+import { applyEvent, newTurn, type Turn } from './chat'
 import { Composer } from './Composer'
-import { ArrowDown, Baby, Briefcase, Door, Menu, Plus, Scale, Sun, Trash } from './icons'
+import { ArrowDown, Baby, Briefcase, Door, Plus, Scale, Sun } from './icons'
 import { AssistantMessage, UserMessage } from './Message'
 import './App.css'
 
@@ -14,44 +14,37 @@ const SUGGESTIONS = [
   { icon: Baby, text: 'אשתי ילדה. כמה ימים מותר לי לא להגיע לעבודה, ומה משלמים לי עליהם?' },
 ]
 
+// One conversation, kept in memory only: the API answers each question on
+// its own, so there is no history worth saving or switching between.
 export default function App() {
-  const [conversations, setConversations] = useState<Conversation[]>(load)
-  const [currentId, setCurrentId] = useState<string | null>(null)
-  const [sidebar, setSidebar] = useState(false)
+  const [turns, setTurns] = useState<Turn[]>([])
   const [atBottom, setAtBottom] = useState(true)
   const abort = useRef<AbortController | null>(null)
   const thread = useRef<HTMLDivElement>(null)
 
-  const current = conversations.find((c) => c.id === currentId) ?? null
-  const busy = current?.turns.some((t) => t.status === 'streaming') ?? false
+  const busy = turns.some((t) => t.status === 'streaming')
 
-  useEffect(() => save(conversations), [conversations])
-
-  const updateTurn = useCallback((convId: string, turnId: string, f: (t: Turn) => Turn) => {
-    setConversations((cs) =>
-      cs.map((c) =>
-        c.id !== convId ? c : { ...c, updatedAt: Date.now(), turns: c.turns.map((t) => (t.id === turnId ? f(t) : t)) },
-      ),
-    )
+  const updateTurn = useCallback((turnId: string, f: (t: Turn) => Turn) => {
+    setTurns((ts) => ts.map((t) => (t.id === turnId ? f(t) : t)))
   }, [])
 
   // Follow the answer while it streams, unless the reader scrolled up.
   useEffect(() => {
     const el = thread.current
     if (el && atBottom) el.scrollTop = el.scrollHeight
-  }, [conversations, atBottom])
+  }, [turns, atBottom])
 
-  async function run(convId: string, turn: Turn) {
+  async function run(turn: Turn) {
     const controller = new AbortController()
     abort.current = controller
     try {
-      await askStream(turn.question, (e) => updateTurn(convId, turn.id, (t) => applyEvent(t, e)), controller.signal)
-      updateTurn(convId, turn.id, (t) =>
+      await askStream(turn.question, (e) => updateTurn(turn.id, (t) => applyEvent(t, e)), controller.signal)
+      updateTurn(turn.id, (t) =>
         t.status === 'streaming' ? { ...t, status: 'error', error: 'החיבור נסגר לפני סוף התשובה' } : t,
       )
     } catch (err) {
       const stopped = controller.signal.aborted
-      updateTurn(convId, turn.id, (t) =>
+      updateTurn(turn.id, (t) =>
         stopped
           ? { ...t, status: 'stopped' }
           : { ...t, status: 'error', error: err instanceof Error ? err.message : String(err) },
@@ -61,89 +54,40 @@ export default function App() {
 
   function send(text: string) {
     const turn = newTurn(text)
-    let convId = currentId
-    if (!current) {
-      const conv = newConversation(turn)
-      convId = conv.id
-      setConversations((cs) => [conv, ...cs])
-      setCurrentId(convId)
-    } else {
-      setConversations((cs) =>
-        cs.map((c) => (c.id === convId ? { ...c, updatedAt: Date.now(), turns: [...c.turns, turn] } : c)),
-      )
-    }
+    setTurns((ts) => [...ts, turn])
     setAtBottom(true)
-    run(convId!, turn)
+    run(turn)
   }
 
   function retry(turn: Turn) {
-    if (!current || busy) return
+    if (busy) return
     const fresh = { ...newTurn(turn.question), id: turn.id }
-    updateTurn(current.id, turn.id, () => fresh)
-    run(current.id, fresh)
+    updateTurn(turn.id, () => fresh)
+    run(fresh)
   }
 
-  function remove(id: string) {
-    setConversations((cs) => cs.filter((c) => c.id !== id))
-    if (id === currentId) setCurrentId(null)
+  function reset() {
+    abort.current?.abort()
+    setTurns([])
   }
-
-  const sorted = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt)
 
   return (
-    <div className={`app ${sidebar ? 'sidebar-open' : ''}`} dir="rtl">
-      <aside className="sidebar">
-        <div className="brand">
-          <Scale size={20} />
-          <span>זכויות עובדים</span>
-        </div>
-        <button
-          className="new-chat"
-          onClick={() => {
-            setCurrentId(null)
-            setSidebar(false)
-          }}
-        >
-          <Plus size={17} />
-          שיחה חדשה
-        </button>
-        <nav className="history">
-          {sorted.length > 0 && <div className="history-label">שיחות קודמות</div>}
-          {sorted.map((c) => (
-            <div key={c.id} className={`history-item ${c.id === currentId ? 'active' : ''}`}>
-              <button
-                className="history-title"
-                onClick={() => {
-                  setCurrentId(c.id)
-                  setSidebar(false)
-                }}
-              >
-                {c.title}
-              </button>
-              <button className="history-delete" onClick={() => remove(c.id)} title="מחיקה" aria-label="מחיקה">
-                <Trash size={15} />
-              </button>
-            </div>
-          ))}
-        </nav>
-        <div className="sidebar-foot">
-          תשובות מתוך 50 דפים של כל זכות. כל ציטוט נבדק מול המקור לפני שהוא מוצג כמאומת.
-        </div>
-      </aside>
-      {sidebar && <div className="scrim" onClick={() => setSidebar(false)} />}
-
+    <div className="app" dir="rtl">
       <main className="main">
         <header className="topbar">
-          <button className="icon-btn menu" onClick={() => setSidebar(true)} aria-label="תפריט">
-            <Menu size={20} />
-          </button>
-          <span className="topbar-title">{current?.title ?? 'שיחה חדשה'}</span>
-          <button className="icon-btn" onClick={() => setCurrentId(null)} title="שיחה חדשה" aria-label="שיחה חדשה">
-            <Plus size={19} />
-          </button>
+          <div className="brand">
+            <Scale size={20} />
+            <span>זכויות עובדים</span>
+          </div>
+          {turns.length > 0 && (
+            <button className="new-chat" onClick={reset}>
+              <Plus size={17} />
+              שיחה חדשה
+            </button>
+          )}
         </header>
 
-        {!current ? (
+        {turns.length === 0 ? (
           <div className="empty">
             <div className="empty-inner">
               <div className="empty-logo">
@@ -160,6 +104,9 @@ export default function App() {
                   </button>
                 ))}
               </div>
+              <p className="empty-note">
+                תשובות מתוך 50 דפים של כל זכות. כל ציטוט נבדק מול המקור לפני שהוא מוצג כמאומת.
+              </p>
             </div>
           </div>
         ) : (
@@ -173,7 +120,7 @@ export default function App() {
               }}
             >
               <div className="thread-inner">
-                {current.turns.map((t) => (
+                {turns.map((t) => (
                   <div key={t.id} className="turn">
                     <UserMessage text={t.question} />
                     <AssistantMessage turn={t} onRetry={() => retry(t)} />

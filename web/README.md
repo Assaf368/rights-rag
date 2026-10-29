@@ -15,11 +15,11 @@ Start the API first from the repository root:
 | File | What it does |
 |---|---|
 | `src/api.ts` | Types and the `POST /ask/stream` reader (server-sent events over `fetch`) |
-| `src/chat.ts` | Conversation state; turns stream events into steps, sources and answer text |
+| `src/chat.ts` | Turn state; turns stream events into steps, sources and answer text |
 | `src/AnswerText.tsx` | Renders the answer: light markdown and `«quote» [n]` citations with hover cards |
 | `src/Message.tsx` | A question and its answer: live steps, source chips, actions |
 | `src/Composer.tsx` | The input box |
-| `src/App.tsx` | Layout: history sidebar, empty state, thread |
+| `src/App.tsx` | Layout: top bar, empty state, thread |
 
-Conversations are kept in the browser's `localStorage`. Each question is
-answered on its own; the API has no conversation memory.
+Each question is answered on its own (the API has no conversation memory),
+so the client keeps one conversation in memory and saves no history.
