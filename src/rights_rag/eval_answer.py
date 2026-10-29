@@ -33,6 +33,13 @@ COLLECTION = "structure_headings__e5-large"
 RERANK_DEPTH = 20
 TOP_K = 5
 JUDGE_MODEL = "claude-haiku-5-5"
+# Since answers moved to Haiku, a Haiku judge grades its own model's answers;
+# "judge_v2_sonnet" is the same judge v2 prompt on Sonnet, as a check on that.
+JUDGES = {
+    "judge": JUDGE_MODEL,
+    "judge_v2": JUDGE_MODEL,
+    "judge_v2_sonnet": "claude-sonnet-5-5",
+}
 
 # v1 has an exact sentence; v0 does not, so common Hebrew ways of saying
 # "the sources don't cover this" also count. Only the opening counts: answers
@@ -167,7 +174,11 @@ _LABEL = re.compile(r"\b(" + "|".join(_LABELS) + r")\b")
 
 
 def judge(
-    question: dict, answer_text: str, client, sources: list[dict] | None = None
+    question: dict,
+    answer_text: str,
+    client,
+    sources: list[dict] | None = None,
+    model: str = JUDGE_MODEL,
 ) -> str:
     """Grade one answer. With sources (judge v2) the judge also checks that every
     claim is supported by what the system saw; without them (judge v1) it only
@@ -190,7 +201,7 @@ def judge(
             answer=answer_text,
         )
     response = client.messages.create(
-        model=JUDGE_MODEL,
+        model=model,
         max_tokens=1024,
         output_config={"effort": "low"},
         messages=[{"role": "user", "content": prompt}],
@@ -340,7 +351,7 @@ def score(questions: list[dict], run: dict) -> dict:
                 "keyed": len(keyed),
             },
         }
-        for name in ("judge", "judge_v2"):
+        for name in JUDGES:
             labels = run.get(name, {}).get(version, {})
             if labels:
                 r[name] = _label_rates(labels, answerable, unanswerable)
@@ -439,6 +450,7 @@ def print_report(report: dict) -> None:
     for name, title in (
         ("judge", "judge v1 (Haiku, reference facts only)"),
         ("judge_v2", "judge v2 (Haiku, also sees the sources)"),
+        ("judge_v2_sonnet", "judge v2 on Sonnet (a different model from the answers)"),
     ):
         if any(name in report[v] for v in versions):
             print(f"\n{title}, not deterministic:")
@@ -472,9 +484,14 @@ def main() -> None:
     )
     parser.add_argument(
         "--judge-version",
-        choices=["1", "2", "both"],
+        choices=["1", "2", "both", "2-sonnet"],
         default="2",
-        help="1: reference facts only; 2: also sees the sources",
+        help="1: reference facts only; 2: also sees the sources; 2-sonnet: 2 on Sonnet",
+    )
+    parser.add_argument(
+        "--judge-only",
+        nargs="+",
+        help="judge only these saved versions (labels as saved, e.g. v3@claude-haiku-5-5)",
     )
     parser.add_argument(
         "--rejudge",
@@ -539,18 +556,27 @@ def main() -> None:
         import anthropic
 
         client = anthropic.Anthropic()
-        names = {"1": ["judge"], "2": ["judge_v2"], "both": ["judge", "judge_v2"]}
+        names = {
+            "1": ["judge"],
+            "2": ["judge_v2"],
+            "both": ["judge", "judge_v2"],
+            "2-sonnet": ["judge_v2_sonnet"],
+        }
         for name in names[args.judge_version]:
             if args.rejudge:
                 run.pop(name, None)
             for version, answers in run["answers"].items():
+                if args.judge_only and version not in args.judge_only:
+                    continue
                 labels = run.setdefault(name, {}).setdefault(version, {})
                 for qid, a in answers.items():
                     if qid not in labels and qid in by_id:
                         sources = (
-                            _sources(run, answers, qid) if name == "judge_v2" else None
+                            _sources(run, answers, qid) if name != "judge" else None
                         )
-                        labels[qid] = judge(by_id[qid], a["text"], client, sources)
+                        labels[qid] = judge(
+                            by_id[qid], a["text"], client, sources, JUDGES[name]
+                        )
     path.write_text(json.dumps(run, ensure_ascii=False), encoding="utf-8")
     print(f"run saved to {path}\n")
     print_report(score(questions, run))
