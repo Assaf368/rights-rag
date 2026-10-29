@@ -25,7 +25,7 @@ source. Hovering a quote's number shows where it came from.*
   chunked by document structure, embedded and reranked with multilingual
   models.
 - **Prompt engineering as a measured process.** Four prompt versions (v0 to
-  v1.2), each a single change with a stated reason and a before/after table.
+  v1.2), each with a stated reason and a before/after table.
 - **Hallucination control that does not rely on the model.** Answers must
   quote their sources as `«quote» [n]`; code checks each quote, retries once,
   and blocks what it cannot verify.
@@ -116,7 +116,20 @@ out of the repository.
 
 ## Results
 
-Each step changes one thing. Numbers are on dev unless marked otherwise.
+Numbers are on dev unless marked otherwise. After the first prompt, each step
+changes one thing. Running every experiment below cost about $8 in API calls;
+embeddings and reranking run locally.
+
+The versions that appear in the tables:
+
+| Version | What it is |
+|---|---|
+| v0 | Bare prompt, Claude Sonnet |
+| v1 | Prompt with rules, numbered sources and citations, Sonnet |
+| v1.1 | v1 with the abstention sentence only as a whole answer, Sonnet |
+| v2 | Prompt v1.1 on Claude Haiku, behind the citation check with one retry |
+| **v2.1** | v2 with prompt v1.2 (partial answers allowed). **The shipped system.** |
+| v3 | v2.1 plus a review round. Measured and removed |
 
 ### 1. Chunking
 
@@ -154,7 +167,7 @@ Same Hit@5 from 20 candidates at less than half the time. Test split: 0.85 →
 0.95. On the hand-written set the reranker did not change Hit@5 (0.83) but
 raised Hit@10 from 0.87 to 0.96.
 
-### 4. The answer prompt
+### 4. The answer prompt (Sonnet)
 
 | | v0: bare | v1: rules and numbered sources |
 |---|---|---|
@@ -163,11 +176,14 @@ raised Hit@10 from 0.87 to 0.96.
 | Quotes found in their source | – (no citations) | 257 / 257 |
 | Abstained on 34 hard unanswerable questions | 65% | **100%** |
 
-v1 puts instructions in English and asks for Hebrew answers, marks the
-sources as data rather than instructions, requires `«quote» [n]` citations,
-states conditions, prefers the newer source when sources conflict, and gives
-an exact sentence for "the sources do not cover this". v0 knew the facts
-equally well but added claims the sources did not support.
+v1 is the one step that changes several things at once, as a first working
+prompt: instructions in English with Hebrew answers, sources marked as data
+rather than instructions, `«quote» [n]` citations, stated conditions, the
+newer source preferred when sources conflict, and an exact sentence for "the
+sources do not cover this". v0 knew the facts equally well but added claims
+the sources did not support. The 34 hard unanswerable questions are those of
+dev and test together; this comparison was run before the test split was
+reserved for single runs.
 
 v1.1 fixed a side effect: when it could not answer, v1 explained at length
 what the sources *did* say (410 characters on average). v1.1 answers with the
@@ -187,21 +203,22 @@ the configuration the API runs; v3 adds the review round of section 9.
 | Unanswerable: judged hallucinated (Haiku / Sonnet judge) | 0.17 / – | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | Cost | $0.27 | $0.32 | $0.03 | $0.03 | $0.14 |
 
-The bare prompt answered 58% of the questions it should not have, and made
-up an answer to 17%. Every later version made up none.
+On questions the pages do not answer, the bare prompt did not abstain 58% of
+the time (code check), and the judge rated 17% of its answers as made up.
+Every later version made up none.
 
 ### 6. A cheaper model, made safe by the citation check
 
-| | Sonnet v1.1 | Haiku v1.1 | Haiku, check that blocks | **Haiku, check with one retry (v2)** |
+| | Sonnet v1.1 | Haiku v1.1, no check | Haiku, check that blocks | **Haiku, check with one retry (v2)** |
 |---|---|---|---|---|
-| Key facts after the check | 0.94 | – | 0.86 | **0.94** |
+| Key facts (after the check, where there is one) | 0.94 | 0.92 | 0.86 | **0.94** |
 | Quotes found in their source | 1.00 | 0.98 | 1.00 | 1.00 |
 | Cost | $0.78 | $0.06 | $0.06 | $0.06 |
 
 Haiku's failed quotes were near misses (a dropped parenthesis, a changed
 plural, "..." inside a quote), not inventions. Blocking alone discarded
 correct answers; one retry with the failed quotes listed fixed 5 of 6. Result:
-Sonnet's accuracy at a twelfth of the cost.
+the same key facts as Sonnet behind the same check, at a twelfth of the cost.
 
 **Then v2.1: partial answers, on purpose.** Prompt v1.2 changes one rule.
 When the sources say nothing relevant, the answer is the exact abstention
@@ -236,8 +253,9 @@ from code to the judge, both numbers are reported.
 The expected slang problem did not exist: all 10 slang questions were
 retrieved without help. Rewriting every question hurt, because rewrites drop
 specifics. But on the 8 questions where retrieval had missed, rewriting found
-the answer for 6. So rewriting was kept only as a step the reviewer could ask
-for (sections 8 and 9).
+the answer for 6. So rewriting was used only inside the review round
+(sections 8 and 9), as a step the reviewer could ask for. With that round
+removed, the shipped system does not rewrite queries.
 
 ### 8. The reviewer, tested on its own before use
 
@@ -283,7 +301,7 @@ rarely misses.
 
 **Decision: the review round is not part of the shipped system.** On data it
 was not tuned on it rescued no answers, sent correct abstentions to needless
-searches, and multiplied the cost by four to five. The API, CLI and client
+searches, and multiplied the cost by about four. The API, CLI and client
 answer with v2.1. The code stays in the repository (`critic.py`, the review
 branch of `graph.py`, `eval_critic.py`) so the numbers above can be
 reproduced, and so the round can be measured again on a larger corpus, where
@@ -312,8 +330,8 @@ retrieval misses more often.
 - **A confident but incomplete answer is not caught.** When the right passage
   is not retrieved and the model answers from what it has, nothing in the
   shipped system notices. The removed review round only saw answers that had
-  already abstained or failed a quote check, and caught about half of the
-  wrong ones on dev.
+  already abstained or failed a quote check: about half of the wrong answers
+  in the saved runs.
 - **The review round was tuned on the data it was first measured on.** Its
   held-out results (sections 8 and 9) are the ones that decided its removal.
 - **Partial answers to unanswerable questions.** Haiku sometimes says the
