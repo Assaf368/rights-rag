@@ -58,3 +58,23 @@ def test_bm25_needs_prefix_stripping_for_hebrew():
     r = Retriever(col, query_embedder=lambda q: [0.0])
     assert "x" not in r.bm25("פיצויים")
     assert r.bm25("פיצויים", strip_prefixes=True)[0] == "x"
+
+
+def test_rewrite_parses_one_query_per_line():
+    from rights_rag.answer import Answer
+    from rights_rag.rewrite import rewrite
+
+    def fake(system, user):
+        return Answer(
+            "1. פיטורים ללא הודעה מוקדמת\n\n- זכויות בפיטורים\nא\nב",
+            "end_turn",
+            0,
+            0,
+            "x",
+        )
+
+    assert rewrite("עפו עליי", fake) == [
+        "פיטורים ללא הודעה מוקדמת",
+        "זכויות בפיטורים",
+        "א",
+    ]

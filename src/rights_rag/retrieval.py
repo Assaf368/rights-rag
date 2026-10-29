@@ -117,10 +117,20 @@ class Reranker:
 
     def rerank(self, question: str, candidates: list[tuple[str, str]]) -> list[str]:
         """candidates: (chunk_id, text) pairs. Returns ids, most relevant first."""
+        return self.rerank_many([question], candidates)
+
+    def rerank_many(
+        self, queries: list[str], candidates: list[tuple[str, str]]
+    ) -> list[str]:
+        """Like rerank, scoring each chunk by its best match over several
+        queries (the question and its rewrites)."""
         if not candidates:
             return []
-        scores = self.model.predict(
-            [(question, text) for _, text in candidates], batch_size=16
-        )
-        order = sorted(range(len(candidates)), key=lambda i: scores[i], reverse=True)
+        best = [float("-inf")] * len(candidates)
+        for query in queries:
+            scores = self.model.predict(
+                [(query, text) for _, text in candidates], batch_size=16
+            )
+            best = [max(b, float(s)) for b, s in zip(best, scores, strict=True)]
+        order = sorted(range(len(candidates)), key=lambda i: best[i], reverse=True)
         return [candidates[i][0] for i in order]

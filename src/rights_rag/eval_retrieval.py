@@ -7,6 +7,7 @@ loading the model:
     uv run python -m rights_rag.eval_retrieval                       # chunking strategies
     uv run python -m rights_rag.eval_retrieval --experiment hybrid   # vector vs BM25 vs RRF
     uv run python -m rights_rag.eval_retrieval --experiment rerank   # vector vs reranked top-N
+    uv run python -m rights_rag.eval_retrieval --experiment rewrite  # question vs rewritten queries
     uv run python -m rights_rag.eval_retrieval --rescore eval/runs/<file>.json
 """
 
@@ -22,6 +23,7 @@ from rights_rag.golden import fact_found, load_golden, normalize
 KS = (1, 3, 5, 10)
 TOP_N = max(KS)
 RUNS = Path("eval/runs")
+REWRITE_DEPTH = 20  # vector candidates per query in the rewrite experiment
 COLLECTIONS = [
     "fixed__e5-large",
     "unit__e5-large",
@@ -176,6 +178,46 @@ def retrieve_rerank(questions: list[dict], collection: str = HYBRID_COLLECTION) 
     return run
 
 
+def retrieve_rewrite(
+    questions: list[dict], collection: str = HYBRID_COLLECTION
+) -> tuple[dict, dict]:
+    """The reranked question (as in the rerank experiment) against Haiku's
+    rewritten queries alone and against the question plus its rewrites. Each
+    query brings its own vector top-20; the union is reranked by best score."""
+    from rights_rag.answer import claude_caller
+    from rights_rag.index import E5Embedder, open_collection
+    from rights_rag.retrieval import Reranker, Retriever
+    from rights_rag.rewrite import rewrite
+
+    embedder = E5Embedder()
+    retriever = Retriever(open_collection(collection), embedder.query)
+    reranker = Reranker()
+    call = claude_caller(model="claude-haiku-5-5")
+    depth = REWRITE_DEPTH
+    run: dict[str, dict[str, list[dict]]] = {
+        "rerank@20": {},
+        "rewrite": {},
+        "question+rewrite": {},
+    }
+    rewrites = {}
+    for i, q in enumerate(questions, 1):
+        queries = rewrites[q["id"]] = rewrite(q["question"], call)
+
+        def ranked(qs: list[str]) -> list[dict]:
+            ids = list(
+                dict.fromkeys(c for x in qs for c in retriever.vector(x, n=depth))
+            )
+            pairs = [(c, retriever.chunks[c]["embed_text"]) for c in ids]
+            return retriever.hits(reranker.rerank_many(qs, pairs), TOP_N)
+
+        run["rerank@20"][q["id"]] = ranked([q["question"]])
+        run["rewrite"][q["id"]] = ranked(queries)
+        run["question+rewrite"][q["id"]] = ranked([q["question"], *queries])
+        print(f"\rrewrite: {i}/{len(questions)}", end="", flush=True)
+    print()
+    return run, rewrites
+
+
 def print_report(report: dict) -> None:
     header = (
         f"{'collection':32}"
@@ -208,7 +250,9 @@ def main() -> None:
         "--rescore", type=Path, help="score a saved run without retrieving"
     )
     parser.add_argument(
-        "--experiment", choices=["chunking", "hybrid", "rerank"], default="chunking"
+        "--experiment",
+        choices=["chunking", "hybrid", "rerank", "rewrite"],
+        default="chunking",
     )
     args = parser.parse_args()
 
@@ -219,10 +263,16 @@ def main() -> None:
     questions = [
         q for q in load_golden() if args.split == "all" or q["split"] == args.split
     ]
+    extra = {}
     if saved:
         run = saved["run"]
     else:
-        if args.experiment == "hybrid":
+        if args.experiment == "rewrite":
+            from dotenv import load_dotenv
+
+            load_dotenv()
+            run, extra["rewrites"] = retrieve_rewrite(questions)
+        elif args.experiment == "hybrid":
             run = retrieve_hybrid(questions)
         elif args.experiment == "rerank":
             run = retrieve_rerank(questions)
@@ -233,7 +283,8 @@ def main() -> None:
         out = RUNS / f"{args.experiment}_{args.split}_{stamp}.json"
         out.write_text(
             json.dumps(
-                {"split": args.split, "experiment": args.experiment, "run": run},
+                {"split": args.split, "experiment": args.experiment, "run": run}
+                | extra,
                 ensure_ascii=False,
             ),
             encoding="utf-8",
