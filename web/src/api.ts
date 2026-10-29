@@ -11,35 +11,23 @@ export type Source = {
 
 export type Citation = { quote: string; source: number; valid: boolean }
 
-export type Decision = { action: string; reason: string; flag: string }
-
 export type AskResponse = {
   answer: string
   status: 'answered' | 'abstained' | 'blocked'
   disclaimer: string
   sources: Source[]
   citations: Citation[]
-  review: {
-    flag: string | null
-    decision: Decision | null
-    searched_again: boolean
-    queries: string[]
-  }
   cost_usd: number
   seconds: number
 }
 
 export type StreamEvent =
   | { type: 'stage'; stage: 'searching'; queries: string[] }
-  | { type: 'stage'; stage: 'searching_again'; queries: string[] }
   | { type: 'stage'; stage: 'answering' }
-  | { type: 'stage'; stage: 'reviewing'; flag: string }
   | { type: 'sources'; sources: Source[] }
   | { type: 'token'; text: string }
   | { type: 'retry'; failed: string[] }
   | { type: 'blocked' }
-  | { type: 'critic'; decision: Decision }
-  | { type: 'replace'; text: string }
   | { type: 'done'; response: AskResponse }
   | { type: 'error'; message: string }
 
@@ -54,7 +42,7 @@ export async function askStream(
   const res = await fetch('/ask/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }), // the critic is on by default
+    body: JSON.stringify({ question }),
     signal,
   })
   if (!res.ok || !res.body) throw new Error(`השרת החזיר ${res.status}`)

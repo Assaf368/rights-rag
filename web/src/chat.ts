@@ -1,9 +1,9 @@
 // Chat state: a turn is one question and the answer as it streams in.
 
-import type { AskResponse, Decision, Source, StreamEvent } from './api'
+import type { AskResponse, Source, StreamEvent } from './api'
 
 export type Step = {
-  kind: 'search' | 'sources' | 'answer' | 'retry' | 'blocked' | 'review' | 'critic' | 'search_again' | 'verified'
+  kind: 'search' | 'sources' | 'answer' | 'retry' | 'blocked' | 'verified'
   label: string
   detail?: string
 }
@@ -15,22 +15,9 @@ export type Turn = {
   steps: Step[]
   draft: string // the answer text as it streams; replaced by the final one
   sources: Source[]
-  decision?: Decision
   response?: AskResponse
   error?: string
   startedAt: number
-}
-
-const ACTION_LABEL: Record<string, string> = {
-  accept: 'השאיר את התשובה',
-  retry_with_rewrite: 'ביקש לנסח מחדש ולחפש שוב',
-  abstain: 'החליט שאין תשובה במקורות',
-}
-
-const FLAG_LABEL: Record<string, string> = {
-  abstained: 'המודל לא מצא תשובה',
-  retried: 'נדרש ניסיון חוזר בציטוטים',
-  blocked: 'הציטוטים לא אומתו',
 }
 
 const newId = () => Math.random().toString(36).slice(2, 10)
@@ -53,16 +40,7 @@ export function applyEvent(t: Turn, e: StreamEvent): Turn {
   switch (e.type) {
     case 'stage':
       if (e.stage === 'searching') return { ...t, steps: step({ kind: 'search', label: 'מחפש במקורות' }) }
-      if (e.stage === 'searching_again')
-        return {
-          ...t,
-          steps: step({ kind: 'search_again', label: 'מחפש שוב בניסוח אחר', detail: e.queries.slice(1).join(' · ') }),
-        }
-      if (e.stage === 'answering') return { ...t, draft: '', steps: step({ kind: 'answer', label: 'כותב תשובה' }) }
-      return {
-        ...t,
-        steps: step({ kind: 'review', label: 'המבקר בודק את התשובה', detail: FLAG_LABEL[e.flag] ?? e.flag }),
-      }
+      return { ...t, draft: '', steps: step({ kind: 'answer', label: 'כותב תשובה' }) }
     case 'sources':
       return {
         ...t,
@@ -79,18 +57,6 @@ export function applyEvent(t: Turn, e: StreamEvent): Turn {
       }
     case 'blocked':
       return { ...t, steps: step({ kind: 'blocked', label: 'הציטוטים לא אומתו, התשובה נחסמה' }) }
-    case 'critic':
-      return {
-        ...t,
-        decision: e.decision,
-        steps: step({
-          kind: 'critic',
-          label: `המבקר ${ACTION_LABEL[e.decision.action] ?? e.decision.action}`,
-          detail: e.decision.reason,
-        }),
-      }
-    case 'replace':
-      return { ...t, draft: e.text }
     case 'done': {
       const r = e.response
       const ok = r.citations.filter((c) => c.valid).length

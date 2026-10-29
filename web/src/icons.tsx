@@ -57,12 +57,6 @@ export const Refresh = (p: P) => (
     <path d="M20 5v6h-6" />
   </Icon>
 )
-export const Shield = (p: P) => (
-  <Icon {...p}>
-    <path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z" />
-    <path d="M9 12l2 2 4-4" />
-  </Icon>
-)
 export const ChevronDown = (p: P) => (
   <Icon {...p}>
     <path d="M6 9l6 6 6-6" />

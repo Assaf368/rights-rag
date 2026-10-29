@@ -4,7 +4,6 @@ import time
 
 from rights_rag.answer import check_citations
 from rights_rag.costs import cost
-from rights_rag.critic import flag
 from rights_rag.events import emit, listening, public_sources
 from rights_rag.golden import normalize
 from rights_rag.graph import build_graph, run
@@ -28,37 +27,31 @@ def to_response(state: dict, seconds: float) -> dict:
         "disclaimer": DISCLAIMER_V1,
         "sources": public_sources(sources),
         "citations": check_citations(text, sources),
-        "review": {
-            "flag": flag(state["answer"]),  # of the final answer
-            "decision": state.get("decision"),  # with the flag that triggered it
-            "searched_again": len(state.get("queries") or []) > 1,
-            "queries": state.get("queries") or [],
-        },
         "cost_usd": round(sum(cost(c) for c in state.get("calls") or []), 5),
         "seconds": round(seconds, 2),
     }
 
 
 class Answerer:
-    """Holds the loaded models; ask() runs v3, or v2.1 with critic=False."""
+    """Holds the loaded models and answers with v2.1. The review round (v3)
+    was measured and left out: on held-out data it rescued no answers and
+    cost four times as much (see the README). It remains in graph.py for the
+    evaluation."""
 
     def __init__(self, components: dict):
-        self.graphs = {
-            True: build_graph(**components),
-            False: build_graph(**components | {"critique": None}),
-        }
+        self.graph = build_graph(**components | {"critique": None})
 
-    def ask(self, question: str, critic: bool = True) -> dict:
+    def ask(self, question: str) -> dict:
         start = time.perf_counter()
-        state = run(self.graphs[critic], question)
+        state = run(self.graph, question)
         return to_response(state, time.perf_counter() - start)
 
-    def ask_streaming(self, question: str, critic: bool, on_event) -> None:
+    def ask_streaming(self, question: str, on_event) -> None:
         """ask(), reporting progress to on_event as it happens. The last
         event is "done" with the full response, or "error"."""
         with listening(on_event):
             try:
-                emit("done", response=self.ask(question, critic))
+                emit("done", response=self.ask(question))
             except Exception as e:  # noqa: BLE001 - the stream must end with an event
                 emit("error", message=f"{type(e).__name__}: {e}")
 

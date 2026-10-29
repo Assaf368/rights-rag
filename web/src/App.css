@@ -357,8 +357,7 @@
   background: var(--faint);
 }
 
-.step-verified .dot,
-.step-critic .dot {
+.step-verified .dot {
   background: var(--ok);
 }
 

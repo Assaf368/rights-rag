@@ -23,7 +23,6 @@ WEB_ORIGINS = ["http://localhost:5173"]  # the Vite dev server
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=1000)
-    critic: bool = True
 
 
 def create_app(make_answerer: Callable[[], Answerer] = default_answerer) -> FastAPI:
@@ -50,12 +49,12 @@ def create_app(make_answerer: Callable[[], Answerer] = default_answerer) -> Fast
     @app.post("/ask")
     async def ask(req: AskRequest) -> dict:
         # The pipeline is blocking (models and API calls); keep the event loop free.
-        return await run_in_threadpool(state["answerer"].ask, req.question, req.critic)
+        return await run_in_threadpool(state["answerer"].ask, req.question)
 
     @app.post("/ask/stream")
     async def ask_stream(req: AskRequest) -> StreamingResponse:
-        """Server-sent events: stage, sources, token, retry, blocked, critic,
-        replace, then done (with the same response as /ask) or error."""
+        """Server-sent events: stage, sources, token, retry, blocked, then
+        done (with the same response as /ask) or error."""
         loop = asyncio.get_running_loop()
         queue: asyncio.Queue[dict] = asyncio.Queue()
 
@@ -67,7 +66,6 @@ def create_app(make_answerer: Callable[[], Answerer] = default_answerer) -> Fast
                 None,
                 state["answerer"].ask_streaming,
                 req.question,
-                req.critic,
                 on_event,
             )
             while True:

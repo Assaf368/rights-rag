@@ -29,9 +29,12 @@ source. Hovering a quote's number shows where it came from.*
 - **Hallucination control that does not rely on the model.** Answers must
   quote their sources as `«quote» [n]`; code checks each quote, retries once,
   and blocks what it cannot verify.
-- **An agentic step with bounded decisions.** A LangGraph graph where cheap
-  checks decide *when* to review an answer and a stronger model decides *what*
-  to do: accept, abstain, or rewrite the query and search again (at most once).
+- **An agentic step, built, measured and removed.** A LangGraph review round
+  where cheap checks decide *when* to review an answer and a stronger model
+  decides *what* to do: accept, abstain, or rewrite the query and search
+  again. It was tested on its own, fixed, and run on held-out data, where it
+  rescued nothing at four times the cost, so the shipped system leaves it
+  out.
 - **Evaluation design.** A golden set labeled with exact source sentences,
   deterministic metrics first and an LLM judge second, a held-out test split,
   and a separate hand-written question set to check the first set for bias.
@@ -47,13 +50,9 @@ flowchart LR
     A --> G{citation check}
     G -- a quote is not<br/>in its source --> A2[one retry<br/>with the failed quotes] --> G2{check}
     G2 -- fails again --> B[blocked]
-    G -- ok --> F{flagged?}
-    G2 -- ok --> F
-    B --> F
-    F -- no --> OUT[answer<br/>+ sources]
-    F -- yes --> C[reviewer<br/>Claude Sonnet]
-    C -- accept / abstain --> OUT
-    C -- search again --> RW[rewrite query] --> R2[retrieve with<br/>question + rewrites] --> A3[answer] --> OUT
+    G -- ok --> OUT[answer<br/>+ sources]
+    G2 -- ok --> OUT
+    B --> OUT
 ```
 
 1. **Retrieve.** The question is embedded with `multilingual-e5-large` and
@@ -65,12 +64,7 @@ flowchart LR
 3. **Check citations.** Code verifies that every quote appears in source `n`.
    On failure the model gets one retry with the failed quotes listed; if that
    fails too, the answer is replaced with "could not verify".
-4. **Review, when flagged.** An answer is flagged if it needed the retry, was
-   blocked, or abstained (about one answer in three on the dev set). A reviewer (Claude
-   Sonnet) sees the question, sources, answer and the list of pages in the
-   collection, and chooses to accept, abstain, or search again with rewritten
-   queries.
-5. **Stream.** The API sends each step as it happens (server-sent events);
+4. **Stream.** The API sends each step as it happens (server-sent events);
    the client shows progress, the answer as it is written, and marks each
    quote verified or not once the check has run.
 
@@ -182,10 +176,10 @@ from 972 to 785 characters.
 
 ### 5. Held-out test split
 
-Each version run once on the test split, after all tuning on dev; the last
-column is the configuration the API runs.
+Each version run once on the test split, after all tuning on dev. v2.1 is
+the configuration the API runs; v3 adds the review round of section 9.
 
-| | v0, Sonnet | v1.1, Sonnet | v2, Haiku | v2.1, Haiku | **v3, Haiku** |
+| | v0, Sonnet | v1.1, Sonnet | v2, Haiku | **v2.1, Haiku** | v3, Haiku |
 |---|---|---|---|---|---|
 | Key facts | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
 | Quotes found in their source | – | 0.99 | 1.00 | 1.00 | 1.00 |
@@ -242,7 +236,8 @@ from code to the judge, both numbers are reported.
 The expected slang problem did not exist: all 10 slang questions were
 retrieved without help. Rewriting every question hurt, because rewrites drop
 specifics. But on the 8 questions where retrieval had missed, rewriting found
-the answer for 6. So rewriting runs only when the reviewer asks for it.
+the answer for 6. So rewriting was kept only as a step the reviewer could ask
+for (sections 8 and 9).
 
 ### 8. The reviewer, tested on its own before use
 
@@ -265,7 +260,7 @@ sent 3 of 11 correct abstentions to an unneeded second search (8% here, 27%
 there). The second search found nothing and they stayed abstentions, so the
 cost was money, not answers.
 
-### 9. The review loop (v3)
+### 9. The review loop (v3): removed
 
 | | dev v2.1 | dev **v3** | test v2.1 | test **v3** | hard v2.1 | hard **v3** |
 |---|---|---|---|---|---|---|
@@ -284,9 +279,15 @@ sampling noise, not the reviewer.
 The reason is retrieval, not the reviewer: the reranker found the answer in
 the top 3 for all 7 hard questions, which were written to be hard to find. A
 reviewer can only fix what retrieval misses, and over 50 pages retrieval
-rarely misses. It stays on by default as a deliberate choice: in this domain
-a needless "I don't know" or a wrong answer costs more than a few cents per
-hundred questions. The API can turn it off per request.
+rarely misses.
+
+**Decision: the review round is not part of the shipped system.** On data it
+was not tuned on it rescued no answers, sent correct abstentions to needless
+searches, and multiplied the cost by four to five. The API, CLI and client
+answer with v2.1. The code stays in the repository (`critic.py`, the review
+branch of `graph.py`, `eval_critic.py`) so the numbers above can be
+reproduced, and so the round can be measured again on a larger corpus, where
+retrieval misses more often.
 
 ## What did not work, and what that taught
 
@@ -299,8 +300,8 @@ hundred questions. The API can turn it off per request.
 - **Blocking unverifiable quotes without a retry** throws away good answers;
   the retry is what made the cheaper model usable.
 - **A reviewer is only as useful as retrieval is weak.** Over 50 pages,
-  retrieval rarely misses, so a well-built review loop had almost nothing to
-  fix on held-out data.
+  retrieval rarely misses, so a working review loop had almost nothing to fix
+  on held-out data, and was removed.
 
 ## Limits
 
@@ -308,13 +309,13 @@ hundred questions. The API can turn it off per request.
   The dev and test questions were written with an LLM; the hand-written set
   scored similarly, which suggests limited bias, but does not rule it out.
 - **The judge is noisy** (70–90% agreement with the deterministic keys).
-- **Flags catch about half of the wrong answers.** An answer that is confident
-  but incomplete, because the right passage was not retrieved, is not
-  flagged, so the reviewer never sees it.
-- **The reviewer was tuned on the data it was first measured on.** The flag
-  rule and the page list were chosen on the same saved answers; held-out
-  results are weaker (section 8). Showing what the reviewer is worth needs
-  more questions that retrieval genuinely misses, or a larger corpus.
+- **A confident but incomplete answer is not caught.** When the right passage
+  is not retrieved and the model answers from what it has, nothing in the
+  shipped system notices. The removed review round only saw answers that had
+  already abstained or failed a quote check, and caught about half of the
+  wrong ones on dev.
+- **The review round was tuned on the data it was first measured on.** Its
+  held-out results (sections 8 and 9) are the ones that decided its removal.
 - **Partial answers to unanswerable questions.** Haiku sometimes says the
   sources do not cover the question and then adds related facts. The judge
   counts these as honest; the exact-sentence metric does not.
@@ -336,9 +337,9 @@ src/rights_rag/
   retrieval.py      vector, BM25, fusion, reranker
   prompts.py        every prompt version, v0 to v1.2
   answer.py         Claude calls, citation check and retry
-  rewrite.py        query rewriting
-  critic.py         the reviewer
-  graph.py          the LangGraph pipeline (v3)
+  graph.py          the pipeline as a LangGraph graph; the review branch (v3)
+                    is used only by the evaluation
+  rewrite.py, critic.py   query rewriting and the reviewer, for v3
   service.py, api.py, ask.py, events.py   response, REST API with streaming, CLI
   golden.py, eval_*.py, results.py        golden set, evaluations, summaries
 eval/golden.jsonl   the questions and their labels

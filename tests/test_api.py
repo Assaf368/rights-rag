@@ -41,17 +41,14 @@ def test_response_has_checked_citations_and_cost():
     r = fake_answerer().ask("כמה הפסקה?")
     assert r["status"] == "answered" and r["citations"][0]["valid"]
     assert r["sources"][0]["n"] == 1 and r["sources"][0]["updated"] is None
-    assert r["review"]["decision"] is None and r["cost_usd"] > 0
+    assert r["cost_usd"] > 0
 
 
-def test_critic_round_is_reported_and_can_be_turned_off():
+def test_the_service_never_runs_the_review_round():
+    # The components include a critic that would always search again; the
+    # service answers with v2.1, so an abstention stays an abstention.
     r = fake_answerer(ABSTAIN_V1).ask("כמה הפסקה?")
-    assert (
-        r["review"]["decision"]["flag"] == "abstained" and r["review"]["searched_again"]
-    )
-    assert r["status"] == "answered"
-    r = fake_answerer(ABSTAIN_V1).ask("כמה הפסקה?", critic=False)
-    assert r["status"] == "abstained" and r["review"]["decision"] is None
+    assert r["status"] == "abstained"
 
 
 def test_api_ask_and_validation():
@@ -76,22 +73,16 @@ def test_stream_sends_progress_then_the_full_response():
     events = stream_events(lambda: fake_answerer(ABSTAIN_V1))
     types = [e["type"] for e in events]
     assert types[0] == "stage" and types[-1] == "done"
-    assert "sources" in types and "critic" in types
+    assert "sources" in types and "token" not in types  # the fake does not stream
     stages = [e["stage"] for e in events if e["type"] == "stage"]
-    assert stages == [
-        "searching",
-        "answering",
-        "reviewing",
-        "searching_again",
-        "answering",
-    ]
-    assert events[-1]["response"]["status"] == "answered"
+    assert stages == ["searching", "answering"]
+    assert events[-1]["response"]["status"] == "abstained"
 
 
 def test_stream_ends_with_an_error_event():
     def broken():
         a = fake_answerer()
-        a.graphs = {True: None, False: None}  # run() will fail
+        a.graph = None  # run() will fail
         return a
 
     assert stream_events(broken)[-1]["type"] == "error"

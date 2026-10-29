@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AnswerText } from './AnswerText'
 import type { Source } from './api'
 import type { Step, Turn } from './chat'
-import { Book, Check, ChevronDown, Clock, Copy, External, Refresh, Scale, Shield, X } from './icons'
+import { Book, Check, ChevronDown, Clock, Copy, External, Refresh, Scale, X } from './icons'
 
 // Section names that say nothing on their own; the chip shows the page instead.
 const GENERIC = /^(שאלות נפוצות|שאלות ותשובות|בקצרה|כדאי לדעת|דוגמאות?|מידע נוסף)$/
@@ -152,12 +152,6 @@ export function AssistantMessage({ turn, onRetry }: { turn: Turn; onRetry: () =>
                   <span className={verified === r.citations.length ? 'badge ok' : 'badge bad'}>
                     {verified === r.citations.length ? <Check size={13} /> : <X size={13} />}
                     {verified}/{r.citations.length} ציטוטים אומתו
-                  </span>
-                )}
-                {r.review.decision && (
-                  <span className="badge" title={r.review.decision.reason}>
-                    <Shield size={13} />
-                    מבקר
                   </span>
                 )}
                 <span className="badge plain">
