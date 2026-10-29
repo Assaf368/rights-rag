@@ -187,12 +187,12 @@ def retrieve_rewrite(
     from rights_rag.answer import claude_caller
     from rights_rag.index import E5Embedder, open_collection
     from rights_rag.retrieval import Reranker, Retriever
-    from rights_rag.rewrite import rewrite
+    from rights_rag.rewrite import REWRITE_MODEL, rewrite
 
     embedder = E5Embedder()
     retriever = Retriever(open_collection(collection), embedder.query)
     reranker = Reranker()
-    call = claude_caller(model="claude-haiku-5-5")
+    call = claude_caller(model=REWRITE_MODEL)
     depth = REWRITE_DEPTH
     run: dict[str, dict[str, list[dict]]] = {
         "rerank@20": {},

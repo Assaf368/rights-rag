@@ -8,6 +8,7 @@ from collections.abc import Callable
 from rights_rag.answer import Answer
 
 MAX_QUERIES = 3
+REWRITE_MODEL = "claude-haiku-5-5"
 
 REWRITE_SYSTEM = """You turn a question from a worker in Israel into search queries for a
 collection of Hebrew pages about employment rights (the Kol Zchut website).

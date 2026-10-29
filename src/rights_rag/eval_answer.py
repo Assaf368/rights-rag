@@ -225,16 +225,36 @@ def retrieve_sources(questions: list[dict]) -> dict[str, list[dict]]:
 
 
 def generate(
-    questions: list[dict], sources: dict, versions: list[str], call, label=str
+    questions: list[dict],
+    sources: dict,
+    versions: list[str],
+    call,
+    label=str,
+    model: str | None = None,
 ) -> dict:
-    """Answer every question with every prompt version; keys are label(version)."""
+    """Answer every question with every prompt version; keys are label(version).
+    v3 runs the graph from the saved sources and saves its trace with the
+    answer, including the sources of a second retrieval."""
     from rights_rag.answer import answer
 
     answers = {}
     for v in versions:
         out = answers[label(v)] = {}
+        if v == "v3":
+            from rights_rag.graph import default_graph
+            from rights_rag.graph import run as run_graph
+
+            graph = default_graph(model)
         for i, q in enumerate(questions, 1):
-            out[q["id"]] = asdict(answer(q["question"], sources[q["id"]], v, call))
+            if v == "v3":
+                state = run_graph(graph, q["question"], sources[q["id"]])
+                out[q["id"]] = state["answer"] | {
+                    k: state.get(k) for k in ("flag", "decision", "queries", "calls")
+                }
+                if state.get("rounds"):
+                    out[q["id"]]["sources"] = state["sources"]
+            else:
+                out[q["id"]] = asdict(answer(q["question"], sources[q["id"]], v, call))
             print(f"\r{label(v)}: {i}/{len(questions)}", end="", flush=True)
         print()
     return answers
@@ -255,18 +275,11 @@ def score(questions: list[dict], run: dict) -> dict:
         cites = [
             c
             for qid in answers
-            for c in check_citations(answers[qid]["text"], run["sources"][qid])
+            for c in check_citations(answers[qid]["text"], _sources(run, answers, qid))
         ]
-        cost = (
-            sum(
-                a["input_tokens"] * PRICES.get(a["model"], (0, 0))[0]
-                + a["output_tokens"] * PRICES.get(a["model"], (0, 0))[1]
-                for a in answers.values()
-            )
-            / 1e6
-        )
+        cost = sum(_cost(c) for a in answers.values() for c in a.get("calls") or [a])
         text = {qid: a["text"] for qid, a in answers.items()}
-        passed = {q: verified(text[q], run["sources"][q]) for q in answers}
+        passed = {q: verified(text[q], _sources(run, answers, q)) for q in answers}
         r = {
             "abstained_when_unanswerable": _rate(
                 [is_abstention(text[q]) for q in unanswerable]
@@ -285,7 +298,7 @@ def score(questions: list[dict], run: dict) -> dict:
                     keys_found(by_id[q]["answer_keys"], text[q])
                     and not keys_found(
                         by_id[q]["answer_keys"],
-                        " ".join(c["text"] for c in run["sources"][q]),
+                        " ".join(c["text"] for c in _sources(run, answers, q)),
                     )
                     for q in keyed
                 ]
@@ -315,6 +328,10 @@ def score(questions: list[dict], run: dict) -> dict:
             ),
             "avg_chars_answerable": _mean([len(text[q]) for q in answerable]),
             "avg_chars_unanswerable": _mean([len(text[q]) for q in unanswerable]),
+            "reviewed": _rate([bool(a.get("decision")) for a in answers.values()]),
+            "searched_again": _rate(
+                [len(a.get("queries") or []) > 1 for a in answers.values()]
+            ),
             "retried": _rate([a.get("attempts", 1) > 1 for a in answers.values()]),
             "refusals": sum(a["stop_reason"] == "refusal" for a in answers.values()),
             "cost_usd": round(cost, 3),
@@ -340,6 +357,17 @@ def score(questions: list[dict], run: dict) -> dict:
                 r[name]["agrees_with_keys"] = _rate([a == b for a, b in pairs])
         report[version] = r
     return report
+
+
+def _sources(run: dict, answers: dict, qid: str) -> list[dict]:
+    """The sources an answer was written from: its own after a second
+    retrieval (v3), the run's shared ones otherwise."""
+    return answers[qid].get("sources") or run["sources"][qid]
+
+
+def _cost(usage: dict) -> float:
+    price_in, price_out = PRICES.get(usage["model"], (0, 0))
+    return (usage["input_tokens"] * price_in + usage["output_tokens"] * price_out) / 1e6
 
 
 def _label_rates(labels: dict, answerable: list, unanswerable: list) -> dict:
@@ -398,6 +426,11 @@ def print_report(report: dict) -> None:
                 for v in versions
             )
         )
+    for title, key in (
+        ("sent to the critic (v3)", "reviewed"),
+        ("searched again after the critic (v3)", "searched_again"),
+    ):
+        print(f"{title:44}" + "".join(f"{report[v][key]:>{w}.2f}" for v in versions))
     print(
         f"{'retried after a failed gate (v2)':44}"
         + "".join(f"{report[v]['retried']:>{w}.2f}" for v in versions)
@@ -496,12 +529,14 @@ def main() -> None:
             # Answer only the questions the saved run has sources for.
             questions = [q for q in questions if q["id"] in run["sources"]]
             run["answers"] |= generate(
-                questions, run["sources"], args.versions, call, label
+                questions, run["sources"], args.versions, call, label, model
             )
         else:
             sources = retrieve_sources(questions)
             run = {"split": args.split, "sources": sources}
-            run["answers"] = generate(questions, sources, args.versions, call, label)
+            run["answers"] = generate(
+                questions, sources, args.versions, call, label, model
+            )
             RUNS.mkdir(parents=True, exist_ok=True)
             tag = "_unanswerable" if args.unanswerable_only else ""
             stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
@@ -518,7 +553,9 @@ def main() -> None:
                 labels = run.setdefault(name, {}).setdefault(version, {})
                 for qid, a in answers.items():
                     if qid not in labels and qid in by_id:
-                        sources = run["sources"][qid] if name == "judge_v2" else None
+                        sources = (
+                            _sources(run, answers, qid) if name == "judge_v2" else None
+                        )
                         labels[qid] = judge(by_id[qid], a["text"], client, sources)
     path.write_text(json.dumps(run, ensure_ascii=False), encoding="utf-8")
     print(f"run saved to {path}\n")
