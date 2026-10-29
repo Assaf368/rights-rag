@@ -15,7 +15,11 @@ type Ctx = {
 }
 
 function CitationChip({ quote, n, ctx }: { quote: string; n: number; ctx: Ctx }) {
-  const [open, setOpen] = useState(false)
+  // Where the card opens: toward the reading direction, or flipped when the
+  // chip is too close to the left edge of the window for the card to fit.
+  const [open, setOpen] = useState<'' | 'start' | 'flip'>('')
+  const show = (e: { currentTarget: HTMLElement }) =>
+    setOpen(e.currentTarget.getBoundingClientRect().left < 300 ? 'flip' : 'start')
   const source = ctx.sources.find((s) => s.n === n)
   const valid = ctx.citations?.find((c) => c.quote === quote && c.source === n)?.valid
   const state = ctx.citations === null ? 'checking' : valid ? 'ok' : 'bad'
@@ -26,14 +30,14 @@ function CitationChip({ quote, n, ctx }: { quote: string; n: number; ctx: Ctx })
       <span
         className="cite-chip"
         tabIndex={0}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        onMouseEnter={show}
+        onMouseLeave={() => setOpen('')}
+        onFocus={show}
+        onBlur={() => setOpen('')}
       >
         {n}
         {open && source && (
-          <span className="popover" role="tooltip">
+          <span className={`popover ${open}`} role="tooltip">
             <span className="popover-title">{source.title}</span>
             <span className="popover-section">{source.section}</span>
             <span className={`popover-state ${state}`}>{note}</span>
