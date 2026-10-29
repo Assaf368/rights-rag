@@ -146,3 +146,20 @@ def test_v2_1_keeps_only_the_abstention_sentence():
     assert (
         answer("כמה הפסקה?", CHUNKS, "v2", fake).text != ABSTAIN_V1
     )  # v2 does not enforce
+
+
+def test_critic_flags_and_parses():
+    from rights_rag.critic import critique, flag
+
+    assert flag({"text": UNVERIFIED_V2, "attempts": 2}) == "blocked"
+    assert flag({"text": "«...» [1]", "attempts": 2}) == "retried"
+    assert flag({"text": ABSTAIN_V1}) == "abstained"
+    assert flag({"text": "«באורך מצטבר של 45 דקות» [1]"}) is None
+
+    fake, _ = _scripted('```json\n{"action": "retry_with_rewrite", "reason": "x"}\n```')
+    assert (
+        critique("q", CHUNKS, ABSTAIN_V1, "abstained", fake)["action"]
+        == "retry_with_rewrite"
+    )
+    fake, _ = _scripted("I think it is fine")
+    assert critique("q", CHUNKS, ABSTAIN_V1, "abstained", fake)["action"] == "accept"
