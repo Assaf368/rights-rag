@@ -6,11 +6,11 @@ questions like *"I was fired on the spot with no notice. What am I owed?"*,
 quotes the passages it relies on, and checks every quote against its source
 in code before the answer is marked as verified.
 
-The project is a study in building a RAG system **by measurement**. Every
-component was added as one change, measured against the version before it on
-a labeled question set, and kept only if the numbers supported it. Several
-reasonable ideas were measured and dropped; they are reported below with the
-ones that worked.
+This is a portfolio project that demonstrates building a RAG system **by
+measurement**. Every component was added as one change, measured against the
+version before it on a labeled question set, and kept only if the numbers
+supported it. Several reasonable ideas were measured and dropped; they are
+reported below with the ones that worked.
 
 ![An answer: the steps the system took, the sources it found, and quotes checked against them](docs/images/answer.png)
 
