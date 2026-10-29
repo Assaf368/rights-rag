@@ -14,9 +14,9 @@ reported below with the ones that worked.
 
 ![An answer: the steps the system took, the sources it found, and quotes checked against them](docs/images/answer.png)
 
-*A real answer. One quote was not found word for word in its source, so the
-model rewrote the answer; a reviewer model then checked it and kept it. All
-five quotes are verified.*
+*A real answer: the steps the system took, the five passages it retrieved,
+and each quote highlighted once code has found it word for word in its
+source. Hovering a quote's number shows where it came from.*
 
 ## What it demonstrates
 
